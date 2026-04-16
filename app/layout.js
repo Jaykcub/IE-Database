@@ -23,6 +23,8 @@ export default function RootLayout({ children }) {
           </div>
           <nav style={{ display: 'flex', gap: '1.5rem' }}>
             <Link href="/" className="nav-link">Dashboard</Link>
+            <Link href="/metrics" className="nav-link">Metrics</Link>
+            <Link href="/jobs" className="nav-link">Job Tickets</Link>
             <Link href="/data-entry" className="nav-link">Data Entry</Link>
           </nav>
         </header>

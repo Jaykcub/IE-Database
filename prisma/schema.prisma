@@ -11,11 +11,27 @@ model Ship {
   hullNumber  Int      @unique
   shipClass   String
   metrics     Metric[]
+  jobs        Job[]
+}
+
+model Job {
+  id              Int      @id @default(autoincrement())
+  shipId          Int
+  department      String   
+  jobDescription  String
+  allocatedHours  Float
+  actualHours     Float?
+  materialCost    Float?
+  status          String   @default("OPEN") 
+  dateCreated     DateTime @default(now())
+  
+  ship            Ship     @relation(fields: [shipId], references: [id], onDelete: Cascade)
 }
 
 model Metric {
   id           Int      @id @default(autoincrement())
   shipId       Int
+  department   String?
   category     String
   value        Float
   dateRecorded DateTime @default(now())
