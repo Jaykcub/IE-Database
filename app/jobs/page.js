@@ -130,7 +130,7 @@ export default function JobsPage() {
              >✕</button>
              <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>Job Details</h2>
              
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+             <div className="modal-grid" style={{ gap: '1rem', marginBottom: '1.5rem' }}>
                 <div>
                    <p style={{ opacity: 0.6, fontSize: '0.85rem', marginBottom: '0.2rem' }}>Target Vessel</p>
                    <p style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{selectedJob.ship?.shipClass} {selectedJob.ship?.hullNumber}</p>

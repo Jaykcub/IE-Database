@@ -21,7 +21,7 @@ export default function RootLayout({ children }) {
               Shipyard IE Analytics
             </span>
           </div>
-          <nav style={{ display: 'flex', gap: '1.5rem' }}>
+          <nav style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyItems: 'center', justifyContent: 'center' }}>
             <Link href="/" className="nav-link">Dashboard</Link>
             <Link href="/metrics" className="nav-link">Metrics</Link>
             <Link href="/jobs" className="nav-link">Job Tickets</Link>
