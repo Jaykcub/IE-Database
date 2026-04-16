@@ -59,6 +59,16 @@ export default function MetricsPage() {
   const keys = Array.from(new Set(metrics.map(m => `Ship ${m.ship.shipClass}-${m.ship.hullNumber}`)));
   const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
 
+  const formatTooltip = (value, name, props) => {
+    const isDollar = props.payload.category.includes('Cost') || props.payload.category.includes('Spend');
+    const roundedValue = Math.round(value);
+    return [isDollar ? `$${roundedValue.toLocaleString()}` : roundedValue.toLocaleString(), name];
+  };
+
+  const formatYAxis = (val) => {
+    return Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(val);
+  };
+
   return (
     <div className="page-container animate-fade-in">
       <div style={{ marginBottom: '2rem' }}>
@@ -104,8 +114,12 @@ export default function MetricsPage() {
             <BarChart data={finalData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
               <XAxis dataKey="category" stroke="rgba(255,255,255,0.5)" />
-              <YAxis stroke="rgba(255,255,255,0.5)" />
-              <Tooltip contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#fff' }}/>
+              <YAxis stroke="rgba(255,255,255,0.5)" tickFormatter={formatYAxis} />
+              <Tooltip 
+                formatter={formatTooltip}
+                contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
+                itemStyle={{ color: '#fff' }}
+              />
               <Legend />
               {keys.map((key, index) => <Bar key={key} dataKey={key} fill={colors[index % colors.length]} radius={[4, 4, 0, 0]} />)}
             </BarChart>
