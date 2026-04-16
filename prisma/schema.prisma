@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Ship {
+  id          Int      @id @default(autoincrement())
+  hullNumber  Int      @unique
+  shipClass   String
+  metrics     Metric[]
+}
+
+model Metric {
+  id           Int      @id @default(autoincrement())
+  shipId       Int
+  category     String
+  value        Float
+  dateRecorded DateTime @default(now())
+  
+  ship         Ship     @relation(fields: [shipId], references: [id], onDelete: Cascade)
+}
