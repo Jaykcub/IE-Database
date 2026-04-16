@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Program {
+  id    String @id @default(cuid())
+  code  String @unique
+  name  String
+  ships Ship[]
+}
+
+model Ship {
+  id          String         @id @default(cuid())
+  programId   String
+  program     Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  hullNumber  String
+  displayName String
+  sortOrder   Int            @default(0)
+  tasks       TaskInstance[]
+
+  @@unique([programId, hullNumber])
+}
+
+model CanonicalTask {
+  id          String         @id @default(cuid())
+  code        String         @unique
+  title       String
+  scopeUnit   String?
+  instances   TaskInstance[]
+}
+
+model TaskInstance {
+  id              String         @id @default(cuid())
+  shipId          String
+  ship            Ship           @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  canonicalTaskId String
+  canonicalTask   CanonicalTask  @relation(fields: [canonicalTaskId], references: [id], onDelete: Cascade)
+  phase           String
+  plannedHours    Float?
+  actualHours     Float
+  scopeQuantity   Float?
+  notes           String?
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  flags           AnalysisFlag[]
+
+  @@unique([shipId, canonicalTaskId, phase])
+}
+
+model AnalysisFlag {
+  id             String       @id @default(cuid())
+  taskInstanceId String
+  taskInstance   TaskInstance @relation(fields: [taskInstanceId], references: [id], onDelete: Cascade)
+  type           String
+  severity       String
+  message        String
+  baselineShipId String?
+  baselineHours  Float?
+  comparedHours  Float?
+  pctChange      Float?
+  resolved       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+}
