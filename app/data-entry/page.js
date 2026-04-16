@@ -13,7 +13,20 @@ export default function DataEntry() {
   const [value, setValue] = useState('');
   
   useEffect(() => {
-    fetch('/api/ships').then(res => res.json()).then(setShips);
+    fetch('/api/ships')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setShips(data);
+        } else {
+          console.error('Failed to load ships:', data);
+          setShips([]);
+        }
+      })
+      .catch(err => {
+        console.error('Network or parsing error:', err);
+        setShips([]);
+      });
   }, []);
 
   const handleAddShip = async (e) => {
