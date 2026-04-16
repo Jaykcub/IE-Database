@@ -24,6 +24,7 @@ export async function POST(request) {
         allocatedHours: parseFloat(data.allocatedHours),
         actualHours: data.actualHours ? parseFloat(data.actualHours) : null,
         materialCost: data.materialCost ? parseFloat(data.materialCost) : null,
+        notes: data.notes || null,
         status: data.status || 'OPEN'
       }
     });

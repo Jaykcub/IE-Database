@@ -23,6 +23,7 @@ export default function DataEntry() {
   const [jobAlloc, setJobAlloc] = useState('');
   const [jobActual, setJobActual] = useState('');
   const [jobCost, setJobCost] = useState('');
+  const [jobNotes, setJobNotes] = useState('');
   
   useEffect(() => {
     fetch('/api/ships')
@@ -69,13 +70,15 @@ export default function DataEntry() {
         jobDescription: jobDesc, 
         allocatedHours: jobAlloc,
         actualHours: jobActual,
-        materialCost: jobCost
+        materialCost: jobCost,
+        notes: jobNotes
       })
     });
     setJobDesc('');
     setJobAlloc('');
     setJobActual('');
     setJobCost('');
+    setJobNotes('');
     alert('Job Ticket logged successfully!');
   };
 
@@ -120,6 +123,10 @@ export default function DataEntry() {
             <div className="form-group">
               <label className="form-label">Material Cost (Optional)</label>
               <input type="number" step="0.01" className="form-control" value={jobCost} onChange={e => setJobCost(e.target.value)} placeholder="Material spend..." />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Notes (Optional)</label>
+              <textarea className="form-control" value={jobNotes} onChange={e => setJobNotes(e.target.value)} placeholder="Attach any department notes or observations here..." rows="3" style={{ resize: 'vertical' }}></textarea>
             </div>
             <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={!jobShipId || !jobDesc || !jobAlloc}>
               Submit Job Ticket

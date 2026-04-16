@@ -22,6 +22,7 @@ model Job {
   allocatedHours  Float
   actualHours     Float?
   materialCost    Float?
+  notes           String?
   status          String   @default("OPEN") 
   dateCreated     DateTime @default(now())
   
