@@ -100,7 +100,9 @@ export default function DataEntry() {
               <label className="form-label">Ship Class</label>
               <select className="form-control" value={shipClass} onChange={e => setShipClass(e.target.value)} required>
                 <option value="DDG">DDG</option>
+                <option value="DDGX">DDGX</option>
                 <option value="LPD">LPD</option>
+                <option value="LHA">LHA</option>
                 <option value="CVN">CVN</option>
                 <option value="SSN">SSN</option>
               </select>
