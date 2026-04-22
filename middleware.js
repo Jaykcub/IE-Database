@@ -8,9 +8,14 @@ const SESSION_SECRET =
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("hullboard_session")?.value;
-  const ok = Boolean(
-    token && (await verifySessionToken(token, SESSION_SECRET)),
-  );
+  let ok = false;
+  try {
+    ok = Boolean(
+      token && (await verifySessionToken(token, SESSION_SECRET)),
+    );
+  } catch {
+    ok = false;
+  }
 
   if (pathname === "/api/auth/login") {
     return NextResponse.next();

@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -27,9 +26,17 @@ function LoginForm() {
         setError(data.error || "Sign-in failed");
         return;
       }
-      const from = searchParams.get("from");
-      router.push(from && from.startsWith("/") ? from : "/");
-      router.refresh();
+      const raw = searchParams.get("from");
+      const safe =
+        raw &&
+        raw.startsWith("/") &&
+        !raw.startsWith("//") &&
+        !raw.includes(":") &&
+        raw.length < 512
+          ? raw
+          : "/";
+      /* Full navigation so the session cookie is always sent on first paint (avoids client-nav races). */
+      window.location.assign(safe);
     } catch {
       setError("Network error");
     } finally {

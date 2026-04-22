@@ -13,7 +13,7 @@ export default function AppHeader({ authed }) {
     router.refresh();
   }
 
-  if (!authed || pathname === "/login") {
+  if (!authed) {
     return null;
   }
 

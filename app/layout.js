@@ -24,9 +24,14 @@ export const metadata = {
 export default async function RootLayout({ children }) {
   const cookieStore = await cookies();
   const token = cookieStore.get("hullboard_session")?.value;
-  const authed = Boolean(
-    token && (await verifySessionToken(token, SESSION_SECRET)),
-  );
+  let authed = false;
+  try {
+    authed = Boolean(
+      token && (await verifySessionToken(token, SESSION_SECRET)),
+    );
+  } catch {
+    authed = false;
+  }
 
   return (
     <html lang="en" className={`${outfit.variable} ${plexMono.variable}`}>
