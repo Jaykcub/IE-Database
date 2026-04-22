@@ -17,16 +17,16 @@ model Ship {
 model Job {
   id              Int      @id @default(autoincrement())
   shipId          Int
-  department      String   
+  department      String
   jobDescription  String
   allocatedHours  Float
   actualHours     Float?
   materialCost    Float?
   notes           String?
-  status          String   @default("OPEN") 
+  status          String   @default("OPEN")
   dateCreated     DateTime @default(now())
-  
-  ship            Ship     @relation(fields: [shipId], references: [id], onDelete: Cascade)
+
+  ship Ship @relation(fields: [shipId], references: [id], onDelete: Cascade)
 }
 
 model Metric {
@@ -36,6 +36,6 @@ model Metric {
   category     String
   value        Float
   dateRecorded DateTime @default(now())
-  
-  ship         Ship     @relation(fields: [shipId], references: [id], onDelete: Cascade)
+
+  ship Ship @relation(fields: [shipId], references: [id], onDelete: Cascade)
 }
