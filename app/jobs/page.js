@@ -1,176 +1,266 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { INGALLS_PASCAGOULA_WORK_CENTERS } from "@/lib/ingalls-work-centers";
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [shipFilter, setShipFilter] = useState("");
+  const [workCenterKey, setWorkCenterKey] = useState("");
 
-  // Filters
-  const [search, setSearch] = useState('');
-  const [shipFilter, setShipFilter] = useState('');
-  const [deptFilter, setDeptFilter] = useState('');
-
-  // Modal State
   const [selectedJob, setSelectedJob] = useState(null);
 
+  const loadJobs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const wc = INGALLS_PASCAGOULA_WORK_CENTERS.find((w) => w.code === workCenterKey);
+      const qs = wc ? `?workCenter=${encodeURIComponent(wc.name)}` : "";
+      const res = await fetch(`/api/jobs${qs}`, { credentials: "include" });
+      const data = await res.json();
+      if (Array.isArray(data)) setJobs(data);
+      else setJobs([]);
+    } catch {
+      setJobs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [workCenterKey]);
+
   useEffect(() => {
-    fetch('/api/jobs')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setJobs(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
+    loadJobs();
+  }, [loadJobs]);
 
-  const filteredJobs = jobs.filter(job => {
+  const filteredJobs = useMemo(() => {
     const term = search.toLowerCase();
-    const shipName = `${job.ship?.shipClass} ${job.ship?.hullNumber}`.toLowerCase();
-    
-    // Check search term
-    const matchesSearch = !search || 
-      job.jobDescription.toLowerCase().includes(term) || 
-      shipName.includes(term) ||
-      (job.notes && job.notes.toLowerCase().includes(term));
-      
-    const matchesShip = !shipFilter || `${job.ship?.shipClass} ${job.ship?.hullNumber}` === shipFilter;
-    const matchesDept = !deptFilter || job.department === deptFilter;
+    return jobs.filter((job) => {
+      const shipName =
+        `${job.ship?.shipClass ?? ""} ${job.ship?.hullNumber ?? ""}`.toLowerCase();
+      const matchesSearch =
+        !search ||
+        job.jobDescription.toLowerCase().includes(term) ||
+        shipName.includes(term) ||
+        (job.notes && job.notes.toLowerCase().includes(term)) ||
+        (job.department && job.department.toLowerCase().includes(term));
 
-    return matchesSearch && matchesShip && matchesDept;
-  });
+      const shipLabel = `${job.ship?.shipClass} ${job.ship?.hullNumber}`;
+      const matchesShip = !shipFilter || shipLabel === shipFilter;
 
-  const uniqueShips = Array.from(new Set(jobs.map(j => `${j.ship?.shipClass} ${j.ship?.hullNumber}`)));
-  const uniqueDepts = Array.from(new Set(jobs.map(j => j.department)));
+      return matchesSearch && matchesShip;
+    });
+  }, [jobs, search, shipFilter]);
+
+  const uniqueShips = useMemo(
+    () =>
+      Array.from(
+        new Set(jobs.map((j) => `${j.ship?.shipClass} ${j.ship?.hullNumber}`)),
+      ),
+    [jobs],
+  );
 
   return (
-    <div className="page-container animate-fade-in">
-      <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Job Tickets</h1>
-      <p style={{ opacity: 0.8, marginBottom: '2rem' }}>Browse, filter, and review granular shipyard tickets.</p>
-      
-      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 250px' }}>
-          <input 
-            type="text" 
-            placeholder="Search descriptions or notes..." 
-            className="form-control"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+    <div className="page-container animate-fade-in jobs-page">
+      <header className="jobs-hero">
+        <div>
+          <p className="jobs-kicker">Job queue · Ingalls-style work centers</p>
+          <h1 className="jobs-title">Work orders</h1>
+          <p className="jobs-lede">
+            Filter by hull and by Pascagoula work center (demo list aligned with
+            public Ingalls operations — not an official HII master).
+          </p>
         </div>
-        <div style={{ flex: '0 0 200px' }}>
-          <select className="form-control" value={shipFilter} onChange={e => setShipFilter(e.target.value)}>
-             <option value="">All Ships</option>
-             {uniqueShips.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div style={{ flex: '0 0 200px' }}>
-          <select className="form-control" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
-             <option value="">All Departments</option>
-             {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </div>
-      </div>
+      </header>
 
-      <div className="glass-panel" style={{ overflowX: 'auto' }}>
+      <section className="jobs-filters glass-panel">
+        <div className="jobs-filter-row">
+          <label className="jobs-field">
+            <span>Search</span>
+            <input
+              type="search"
+              className="form-control"
+              placeholder="Description, hull, notes…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <label className="jobs-field jobs-field--narrow">
+            <span>Hull</span>
+            <select
+              className="form-control"
+              value={shipFilter}
+              onChange={(e) => setShipFilter(e.target.value)}
+            >
+              <option value="">All hulls</option>
+              {uniqueShips.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="jobs-wc-block">
+          <span className="jobs-wc-label">Work center (HII Ingalls — demo)</span>
+          <div className="jobs-chips">
+            <button
+              type="button"
+              className={`jobs-chip ${workCenterKey === "" ? "jobs-chip--on" : ""}`}
+              onClick={() => setWorkCenterKey("")}
+            >
+              All centers
+            </button>
+            {INGALLS_PASCAGOULA_WORK_CENTERS.map((wc) => (
+              <button
+                key={wc.code}
+                type="button"
+                title={wc.summary}
+                className={`jobs-chip ${workCenterKey === wc.code ? "jobs-chip--on" : ""}`}
+                onClick={() => setWorkCenterKey(wc.code)}
+              >
+                <span className="jobs-chip-code">{wc.code}</span>
+                <span className="jobs-chip-name">{wc.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="jobs-table-wrap glass-panel">
         {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center' }}>Loading jobs...</div>
+          <div className="jobs-loading">Loading work orders…</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+          <table className="jobs-table">
             <thead>
-              <tr style={{ background: 'rgba(0,0,0,0.2)' }}>
-                <th style={{ padding: '1rem' }}>Hull/Class</th>
-                <th style={{ padding: '1rem' }}>Department</th>
-                <th style={{ padding: '1rem' }}>Description</th>
-                <th style={{ padding: '1rem' }}>Status</th>
-                <th style={{ padding: '1rem' }}>Action</th>
+              <tr>
+                <th>Hull</th>
+                <th>Work center</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th />
               </tr>
             </thead>
             <tbody>
-              {filteredJobs.map(job => (
-                <tr key={job.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '1rem' }}>{job.ship?.shipClass} {job.ship?.hullNumber}</td>
-                  <td style={{ padding: '1rem' }}>{job.department}</td>
-                  <td style={{ padding: '1rem' }}>{job.jobDescription}</td>
-                  <td style={{ padding: '1rem' }}>
-                    <span style={{ 
-                      padding: '0.25rem 0.5rem', 
-                      borderRadius: '4px', 
-                      fontSize: '0.8rem',
-                      background: job.status === 'COMPLETED' ? 'rgba(16,185,129,0.2)' : 'rgba(59,130,246,0.2)',
-                      color: job.status === 'COMPLETED' ? '#10b981' : '#3b82f6'
-                    }}>
+              {filteredJobs.map((job) => (
+                <tr key={job.id}>
+                  <td className="jobs-mono">
+                    {job.ship?.shipClass} {job.ship?.hullNumber}
+                  </td>
+                  <td>{job.department}</td>
+                  <td>{job.jobDescription}</td>
+                  <td>
+                    <span
+                      className={`jobs-pill jobs-pill--${job.status === "COMPLETED" ? "done" : "open"}`}
+                    >
                       {job.status}
                     </span>
                   </td>
-                  <td style={{ padding: '1rem' }}>
-                    <button onClick={() => setSelectedJob(job)} className="btn-primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>View Details</button>
+                  <td>
+                    <button
+                      type="button"
+                      className="jobs-detail-btn"
+                      onClick={() => setSelectedJob(job)}
+                    >
+                      Open
+                    </button>
                   </td>
                 </tr>
               ))}
-              {filteredJobs.length === 0 && (
+              {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', opacity: 0.5 }}>No job entries found matching criteria.</td>
+                  <td colSpan={5} className="jobs-empty">
+                    No jobs match these filters. Try another work center or run{" "}
+                    <code className="jobs-code">pnpm db:seed</code>.
+                  </td>
                 </tr>
-              )}
+              ) : null}
             </tbody>
           </table>
         )}
-      </div>
+      </section>
 
-      {selectedJob && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass-panel animate-fade-in" style={{ padding: '2rem', maxWidth: '600px', width: '100%', position: 'relative' }}>
-             <button 
-               onClick={() => setSelectedJob(null)}
-               style={{ position: 'absolute', top: '1rem', right: '1.5rem', background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}
-             >✕</button>
-             <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>Job Details</h2>
-             
-             <div className="modal-grid" style={{ gap: '1rem', marginBottom: '1.5rem' }}>
-                <div>
-                   <p style={{ opacity: 0.6, fontSize: '0.85rem', marginBottom: '0.2rem' }}>Target Vessel</p>
-                   <p style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{selectedJob.ship?.shipClass} {selectedJob.ship?.hullNumber}</p>
-                </div>
-                <div>
-                   <p style={{ opacity: 0.6, fontSize: '0.85rem', marginBottom: '0.2rem' }}>Department</p>
-                   <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#3b82f6' }}>{selectedJob.department}</p>
-                </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                   <p style={{ opacity: 0.6, fontSize: '0.85rem', marginBottom: '0.2rem' }}>Description</p>
-                   <p style={{ fontSize: '1.1rem' }}>{selectedJob.jobDescription}</p>
-                </div>
-                <div>
-                   <p style={{ opacity: 0.6, fontSize: '0.85rem', marginBottom: '0.2rem' }}>Allocated Hours</p>
-                   <p style={{ fontSize: '1.2rem' }}>{selectedJob.allocatedHours}</p>
-                </div>
-                <div>
-                   <p style={{ opacity: 0.6, fontSize: '0.85rem', marginBottom: '0.2rem' }}>Actual Hours</p>
-                   <p style={{ fontSize: '1.2rem', color: (selectedJob.actualHours || 0) > selectedJob.allocatedHours ? '#ef4444' : '#10b981' }}>{selectedJob.actualHours || 'Not Recorded'}</p>
-                </div>
-                <div>
-                   <p style={{ opacity: 0.6, fontSize: '0.85rem', marginBottom: '0.2rem' }}>Material Cost</p>
-                   <p style={{ fontSize: '1.2rem' }}>{selectedJob.materialCost ? `$${selectedJob.materialCost.toLocaleString()}` : '-'}</p>
-                </div>
-                <div>
-                   <p style={{ opacity: 0.6, fontSize: '0.85rem', marginBottom: '0.2rem' }}>Status</p>
-                   <p style={{ fontSize: '1.2rem', color: selectedJob.status === 'COMPLETED' ? '#10b981' : '#3b82f6' }}>{selectedJob.status}</p>
-                </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                   <p style={{ opacity: 0.6, fontSize: '0.85rem', marginBottom: '0.2rem' }}>Notes</p>
-                   <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', minHeight: '60px' }}>
-                     {selectedJob.notes || <span style={{ opacity: 0.4 }}>No specialized notes provided for this job.</span>}
-                   </div>
-                </div>
-             </div>
-             
-             <button className="btn-primary" style={{ width: '100%' }} onClick={() => setSelectedJob(null)}>Close Viewer</button>
+      {selectedJob ? (
+        <div
+          className="jobs-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="job-modal-title"
+        >
+          <div className="jobs-modal glass-panel">
+            <button
+              type="button"
+              className="jobs-modal-x"
+              onClick={() => setSelectedJob(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <h2 id="job-modal-title" className="jobs-modal-title">
+              Work order
+            </h2>
+            <dl className="jobs-dl">
+              <div>
+                <dt>Hull</dt>
+                <dd className="jobs-mono">
+                  {selectedJob.ship?.shipClass} {selectedJob.ship?.hullNumber}
+                </dd>
+              </div>
+              <div>
+                <dt>Work center</dt>
+                <dd>{selectedJob.department}</dd>
+              </div>
+              <div className="jobs-dl-span">
+                <dt>Description</dt>
+                <dd>{selectedJob.jobDescription}</dd>
+              </div>
+              <div>
+                <dt>Allocated h</dt>
+                <dd>{selectedJob.allocatedHours}</dd>
+              </div>
+              <div>
+                <dt>Actual h</dt>
+                <dd
+                  className={
+                    (selectedJob.actualHours || 0) > selectedJob.allocatedHours
+                      ? "jobs-warn"
+                      : ""
+                  }
+                >
+                  {selectedJob.actualHours ?? "—"}
+                </dd>
+              </div>
+              <div>
+                <dt>Material</dt>
+                <dd>
+                  {selectedJob.materialCost != null
+                    ? `$${Number(selectedJob.materialCost).toLocaleString()}`
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{selectedJob.status}</dd>
+              </div>
+              <div className="jobs-dl-span">
+                <dt>Notes</dt>
+                <dd className="jobs-notes">
+                  {selectedJob.notes || (
+                    <span className="jobs-muted">No notes.</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+            <button
+              type="button"
+              className="btn-primary jobs-modal-close"
+              onClick={() => setSelectedJob(null)}
+            >
+              Close
+            </button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

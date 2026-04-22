@@ -34,15 +34,24 @@ Full-stack **Next.js** app (app-only repo) for ship construction metrics and job
 
    - **`DATABASE_URL`** — pooled connection (Neon *pooler* host). Used by the app and read from **`prisma.config.ts`** (Prisma 7 keeps URLs out of `schema.prisma`).
    - **`DIRECT_URL`** — direct connection to the same database (non-pooler). Also set in **`prisma.config.ts`** so **`pnpm exec prisma migrate`** does not run through the pooler.
+   - **`HULLBOARD_SESSION_SECRET`** — at least 32 characters; signs the session cookie for sign-in.
 
-3. **Schema and seed**
+3. **Sign in (demo)**
+
+   Open `/login` and use **`Admin`** / **`Admin`**. All app routes assume **admin** for now.
+
+4. **Work centers (demo)**
+
+   Job filters use an **Ingalls Pascagoula–style work center list** derived from **public** sources (e.g. NIOSH ergonomics reports citing shops such as abrasive blasting, hatch assembly, pipe welding, subassembly grinding, and shipboard cable work; Ingalls materials mentioning the planning yard). **It is not an official HII work-center master.**
+
+5. **Schema and seed**
 
    ```bash
    pnpm db:push
    pnpm db:seed
    ```
 
-4. **Run**
+6. **Run**
 
    ```bash
    pnpm dev

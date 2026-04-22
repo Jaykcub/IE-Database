@@ -8,13 +8,19 @@ export default function Dashboard() {
   const [jobs, setJobs] = useState([]);
 
   useEffect(() => {
-    fetch('/api/ships').then(res => res.json()).then(data => {
-      if (Array.isArray(data)) setShips(data);
-    }).catch(console.error);
+    fetch("/api/ships", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setShips(data);
+      })
+      .catch(console.error);
 
-    fetch('/api/jobs').then(res => res.json()).then(data => {
-      if (Array.isArray(data)) setJobs(data);
-    }).catch(console.error);
+    fetch("/api/jobs", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setJobs(data);
+      })
+      .catch(console.error);
   }, []);
 
   const totalAllocated = jobs.reduce((sum, j) => sum + j.allocatedHours, 0);

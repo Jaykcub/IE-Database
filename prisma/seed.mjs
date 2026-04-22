@@ -1,7 +1,11 @@
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import pg from 'pg';
-import dotenv from 'dotenv';
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
+import dotenv from "dotenv";
+import {
+  INGALLS_PASCAGOULA_WORK_CENTERS,
+  workCenterLabel,
+} from "../lib/ingalls-work-centers.js";
 
 dotenv.config();
 
@@ -10,76 +14,121 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-async function main() {
-  console.log('Seeding database with expanded Job and Metric structures...');
+/** Demo job text per work center code — illustrative only */
+const JOB_COPY = {
+  "PLAN-YARD": (hull) =>
+    `Work package staging & line-of-balance review — hull ${hull} (Planning Yard)`,
+  "BLAST-PAINT": () =>
+    "Abrasive blast profile SSPC-SP 10 zone + intermediate coat hold point",
+  "HULL-STEEL": () =>
+    "Block 14 shell insert — tack-up and FA weld per structural travelers",
+  PIPE: () =>
+    "HP air header run L03–L05 — fit-check prior to hydro (pipe fab shop)",
+  ELEC: () =>
+    "Cable pull schedule: fore peak to IC room — megger witness pending",
+  "STRUCT-OUTFIT": () =>
+    "Main deck hatch coaming — alignment pins and shell continuity check",
+  SUBASSY: () =>
+    "Propulsion module subassembly — borescope port prep and QA hold",
+  "WELD-PROD": () =>
+    "Longitudinal seam sequence 4-of-6 — WPS 4211, VT per segment",
+  "TEST-TRIALS": () =>
+    "Sea trials MRC bundle dry run — waterfront crane window 0600–1000",
+};
 
-  const shipsToCreate = [
-    { shipClass: 'DDG', hullNumber: 128 },
-    { shipClass: 'DDG', hullNumber: 129 },
-    { shipClass: 'LPD', hullNumber: 29 },
-    { shipClass: 'LPD', hullNumber: 30 },
-    { shipClass: 'DDGX', hullNumber: 1 },
+const STATUSES = ["OPEN", "IN_PROGRESS", "COMPLETED"];
+
+function pickStatus(i) {
+  return STATUSES[i % STATUSES.length];
+}
+
+async function main() {
+  console.log("Seeding Hullboard demo data (Ingalls-style work centers)…");
+
+  await prisma.job.deleteMany();
+  await prisma.metric.deleteMany();
+  await prisma.ship.deleteMany();
+
+  const shipsData = [
+    { shipClass: "DDG", hullNumber: 128 },
+    { shipClass: "DDG", hullNumber: 129 },
+    { shipClass: "LHA", hullNumber: 8 },
+    { shipClass: "LPD", hullNumber: 28 },
+    { shipClass: "NSC", hullNumber: 10 },
   ];
 
-  const categories = ['Labor Hours', 'Cost Variance', 'Schedule Variance', 'Defect Rate', 'Material Spend'];
-  const departments = ['Electrical', 'Mechanical', 'Pipefitting', 'Welding', 'Paint'];
+  const ships = [];
+  for (const s of shipsData) {
+    ships.push(await prisma.ship.create({ data: s }));
+  }
 
-  for (const s of shipsToCreate) {
-    let ship = await prisma.ship.findUnique({
-      where: { hullNumber: s.hullNumber }
-    });
-    
-    if (!ship) {
-      ship = await prisma.ship.create({ data: s });
-      console.log(`Created Ship ${s.shipClass} ${s.hullNumber}`);
+  const categories = [
+    "Labor Hours",
+    "Cost Variance",
+    "Schedule Variance",
+    "Defect Rate",
+    "Material Spend",
+  ];
+
+  let jobIdx = 0;
+  for (const ship of ships) {
+    const hullLabel = `${ship.shipClass}-${ship.hullNumber}`;
+
+    for (const wc of INGALLS_PASCAGOULA_WORK_CENTERS) {
+      const dept = workCenterLabel(wc);
+      const fn = JOB_COPY[wc.code];
+      const desc = fn ? fn(hullLabel) : `${dept} — standard hull support (demo)`;
+      const allocated = 40 + (jobIdx % 7) * 12 + (wc.code.length % 5) * 8;
+      const drift = (jobIdx % 5) * 3 - 6;
+      const actual =
+        jobIdx % 4 === 0 ? null : Math.max(0, allocated + drift + 0.5);
+
+      await prisma.job.create({
+        data: {
+          shipId: ship.id,
+          department: dept,
+          jobDescription: desc,
+          allocatedHours: allocated,
+          actualHours: actual,
+          materialCost: 2500 + (jobIdx % 11) * 1800,
+          notes:
+            jobIdx % 3 === 0
+              ? "Demo note: material release OK; next gate E-2 electrical safe."
+              : null,
+          status: pickStatus(jobIdx),
+        },
+      });
+      jobIdx += 1;
     }
 
-    // Generate discrete Job Entries
-    for (const dept of departments) {
-      const numJobs = Math.floor(Math.random() * 3) + 1;
-      for (let i = 0; i < numJobs; i++) {
-        const allocated = 100 + Math.random() * 900;
-        await prisma.job.create({
-          data: {
-            shipId: ship.id,
-            department: dept,
-            jobDescription: `Routine ${dept} Outfitting Phase ${i + 1}`,
-            allocatedHours: parseFloat(allocated.toFixed(1)),
-            actualHours: parseFloat((allocated + (Math.random() * 40 - 15)).toFixed(1)),
-            materialCost: parseFloat((5000 + Math.random() * 20000).toFixed(2)),
-            status: Math.random() > 0.5 ? 'COMPLETED' : 'IN_PROGRESS'
-          }
-        });
-      }
-    }
-
-    // Generate departmental legacy metrics
     for (const cat of categories) {
-      for (const dept of departments) {
-        let value = 0;
-        if (cat === 'Labor Hours') value = 15000 + Math.random() * 5000;
-        if (cat === 'Cost Variance') value = Math.random() * 5 - 1; 
-        if (cat === 'Schedule Variance') value = Math.random() * 4 - 1; 
-        if (cat === 'Defect Rate') value = 1 + Math.random() * 2; 
-        if (cat === 'Material Spend') value = 250000 + Math.random() * 50000;
+      for (const wc of INGALLS_PASCAGOULA_WORK_CENTERS.slice(0, 5)) {
+        let value = 1000 + jobIdx + ship.id * 10;
+        if (cat === "Labor Hours") value = 12000 + (ship.id % 4) * 900;
+        if (cat === "Cost Variance") value = (jobIdx % 7) * 0.4 - 1;
+        if (cat === "Schedule Variance") value = (jobIdx % 5) * 0.35 - 0.5;
+        if (cat === "Defect Rate") value = 0.8 + (jobIdx % 4) * 0.15;
+        if (cat === "Material Spend") value = 180000 + ship.id * 12000;
 
         await prisma.metric.create({
           data: {
             shipId: ship.id,
-            department: dept,
+            department: workCenterLabel(wc),
             category: cat,
-            value: parseFloat(value.toFixed(2))
-          }
+            value: Math.round(value * 100) / 100,
+          },
         });
       }
     }
   }
 
-  console.log('Database seeding completed successfully!');
+  console.log(
+    `Done: ${ships.length} hulls, ${jobIdx} jobs, metrics for demo filters.`,
+  );
 }
 
 main()
-  .catch(e => {
+  .catch((e) => {
     console.error(e);
     process.exit(1);
   })

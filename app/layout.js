@@ -1,9 +1,19 @@
-import { Outfit } from "next/font/google";
+import { Outfit, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import Link from 'next/link';
-import { Anchor } from 'lucide-react';
+import { cookies } from "next/headers";
+import { verifySessionToken } from "@/lib/auth-cookie";
+import AppHeader from "./AppHeader";
 
-const outfit = Outfit({ subsets: ["latin"] });
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+const plexMono = IBM_Plex_Mono({
+  weight: ["400", "500"],
+  subsets: ["latin"],
+  variable: "--font-mono",
+});
+
+const SESSION_SECRET =
+  process.env.HULLBOARD_SESSION_SECRET ||
+  "dev-hullboard-session-secret-min-32-chars!";
 
 export const metadata = {
   title: "Hullboard",
@@ -11,27 +21,19 @@ export const metadata = {
     "Shipyard production visibility, IE metrics, and job coordination.",
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("hullboard_session")?.value;
+  const authed = Boolean(
+    token && (await verifySessionToken(token, SESSION_SECRET)),
+  );
+
   return (
-    <html lang="en">
-      <body className={outfit.className}>
-        <header className="glass-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Anchor color="#3b82f6" size={28} />
-            <span style={{ fontSize: '1.25rem', fontWeight: 600, background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Hullboard
-            </span>
-          </div>
-          <nav style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyItems: 'center', justifyContent: 'center' }}>
-            <Link href="/" className="nav-link">Dashboard</Link>
-            <Link href="/metrics" className="nav-link">Metrics</Link>
-            <Link href="/jobs" className="nav-link">Job Tickets</Link>
-            <Link href="/data-entry" className="nav-link">Data Entry</Link>
-          </nav>
-        </header>
-        <main>
-          {children}
-        </main>
+    <html lang="en" className={`${outfit.variable} ${plexMono.variable}`}>
+      <body className="hb-body">
+        <div className="hb-noise" aria-hidden />
+        <AppHeader authed={authed} />
+        <main className="hb-main">{children}</main>
       </body>
     </html>
   );

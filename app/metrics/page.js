@@ -12,9 +12,12 @@ export default function MetricsPage() {
   const [department, setDepartment] = useState('');
 
   useEffect(() => {
-    fetch('/api/ships').then(res => res.json()).then(data => {
-      if (Array.isArray(data)) setShips(data);
-    }).catch(console.error);
+    fetch("/api/ships", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setShips(data);
+      })
+      .catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -30,7 +33,9 @@ export default function MetricsPage() {
       if (department) params.append('department', department);
       
       try {
-        const res = await fetch(`/api/metrics?${params.toString()}`);
+        const res = await fetch(`/api/metrics?${params.toString()}`, {
+          credentials: "include",
+        });
         const data = await res.json();
         setMetrics(Array.isArray(data) ? data : []);
       } catch (err) {

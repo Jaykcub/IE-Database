@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
+import {
+  INGALLS_PASCAGOULA_WORK_CENTERS,
+  workCenterLabel,
+} from "@/lib/ingalls-work-centers";
 
 export default function DataEntry() {
   const [ships, setShips] = useState([]);
@@ -18,7 +22,9 @@ export default function DataEntry() {
 
   // Job State
   const [jobShipId, setJobShipId] = useState('');
-  const [jobDept, setJobDept] = useState('Electrical');
+  const [jobDept, setJobDept] = useState(
+    workCenterLabel(INGALLS_PASCAGOULA_WORK_CENTERS[0]),
+  );
   const [jobDesc, setJobDesc] = useState('');
   const [jobAlloc, setJobAlloc] = useState('');
   const [jobActual, setJobActual] = useState('');
@@ -26,8 +32,8 @@ export default function DataEntry() {
   const [jobNotes, setJobNotes] = useState('');
   
   useEffect(() => {
-    fetch('/api/ships')
-      .then(res => res.json())
+    fetch("/api/ships", { credentials: "include" })
+      .then((res) => res.json())
       .then(data => {
         if (Array.isArray(data)) setShips(data);
         else console.error('Failed to load ships:', data);
@@ -38,9 +44,11 @@ export default function DataEntry() {
   const handleAddShip = async (e) => {
     e.preventDefault();
     setAddingShip(true);
-    const res = await fetch('/api/ships', {
-      method: 'POST',
-      body: JSON.stringify({ shipClass, hullNumber })
+    const res = await fetch("/api/ships", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shipClass, hullNumber }),
     });
     const newShip = await res.json();
     setShips([...ships, newShip]);
@@ -52,9 +60,11 @@ export default function DataEntry() {
 
   const handleAddMetric = async (e) => {
     e.preventDefault();
-    await fetch('/api/metrics', {
-      method: 'POST',
-      body: JSON.stringify({ shipId, department: metricDept, category, value })
+    await fetch("/api/metrics", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shipId, department: metricDept, category, value }),
     });
     setValue('');
     alert('Metric added successfully!');
@@ -62,17 +72,19 @@ export default function DataEntry() {
 
   const handleAddJob = async (e) => {
     e.preventDefault();
-    await fetch('/api/jobs', {
-      method: 'POST',
-      body: JSON.stringify({ 
-        shipId: jobShipId, 
-        department: jobDept, 
-        jobDescription: jobDesc, 
+    await fetch("/api/jobs", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        shipId: jobShipId,
+        department: jobDept,
+        jobDescription: jobDesc,
         allocatedHours: jobAlloc,
         actualHours: jobActual,
         materialCost: jobCost,
-        notes: jobNotes
-      })
+        notes: jobNotes,
+      }),
     });
     setJobDesc('');
     setJobAlloc('');
@@ -98,14 +110,18 @@ export default function DataEntry() {
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Department</label>
-              <select className="form-control" value={jobDept} onChange={e => setJobDept(e.target.value)} required>
-                <option value="Electrical">Electrical</option>
-                <option value="Mechanical">Mechanical</option>
-                <option value="Pipefitting">Pipefitting</option>
-                <option value="Welding">Welding</option>
-                <option value="Paint">Paint</option>
-                <option value="Engineering">Engineering</option>
+              <label className="form-label">Work center (Ingalls demo list)</label>
+              <select
+                className="form-control"
+                value={jobDept}
+                onChange={(e) => setJobDept(e.target.value)}
+                required
+              >
+                {INGALLS_PASCAGOULA_WORK_CENTERS.map((wc) => (
+                  <option key={wc.code} value={workCenterLabel(wc)}>
+                    {wc.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="form-group">

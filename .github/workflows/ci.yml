@@ -35,3 +35,4 @@ jobs:
           # Prisma generate runs in postinstall; build should not require a live DB.
           DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
           DIRECT_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
+          HULLBOARD_SESSION_SECRET: "ci-hullboard-session-secret-min-32-chars!!"

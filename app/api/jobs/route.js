@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const workCenter = searchParams.get("workCenter")?.trim();
+
     const jobs = await prisma.job.findMany({
+      where: workCenter
+        ? {
+            department: workCenter,
+          }
+        : undefined,
       include: { ship: true },
-      orderBy: { dateCreated: 'desc' }
+      orderBy: { dateCreated: "desc" },
     });
     return NextResponse.json(jobs);
   } catch (error) {
