@@ -22,7 +22,7 @@ export default function Dashboard() {
 
   return (
     <div className="page-container animate-fade-in">
-      <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Shipyard Command Center</h1>
+      <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Hullboard</h1>
       <p style={{ opacity: 0.8, marginBottom: '2rem' }}>High-level overview of tracking & variance.</p>
       
       <div className="grid-2">

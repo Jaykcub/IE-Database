@@ -1,4 +1,4 @@
-# Shipyard metrics
+# Hullboard
 
 Full-stack **Next.js** app (app-only repo) for ship construction metrics and jobs — structured so you can grow toward a broader **MES-style** execution layer on the same stack.
 
