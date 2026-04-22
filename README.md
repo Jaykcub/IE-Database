@@ -77,7 +77,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 1. Create a Neon project; copy **pooled** and **direct** connection strings.
 2. Push the repo to **GitHub** and import it in [Vercel](https://vercel.com/).
-3. In Vercel → Environment Variables, set `DATABASE_URL` and `DIRECT_URL`.
+3. In Vercel → Environment Variables, set `DATABASE_URL`, `DIRECT_URL`, and `HULLBOARD_SESSION_SECRET` (long random string, 32+ chars).
 4. For production schema changes, run `pnpm db:migrate:deploy` against Neon from CI or a trusted machine.
 
 ## CI
