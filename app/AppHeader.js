@@ -29,8 +29,8 @@ export default function AppHeader({ authed }) {
         </div>
       </div>
       <nav className="hb-nav" aria-label="Primary">
-        <Link className="hb-link" href="/">
-          Deck
+        <Link className="hb-link" href="/jobs">
+          Jobs
         </Link>
         <Link className="hb-link" href="/jobs">
           Jobs

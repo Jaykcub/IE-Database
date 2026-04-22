@@ -34,7 +34,7 @@ function LoginForm() {
         !raw.includes(":") &&
         raw.length < 512
           ? raw
-          : "/";
+          : "/jobs";
       /* Full navigation so the session cookie is always sent on first paint (avoids client-nav races). */
       window.location.assign(safe);
     } catch {

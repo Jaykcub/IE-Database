@@ -72,6 +72,9 @@ export default function DataEntry() {
 
   const handleAddJob = async (e) => {
     e.preventDefault();
+    const wc = INGALLS_PASCAGOULA_WORK_CENTERS.find(
+      (w) => workCenterLabel(w) === jobDept,
+    );
     await fetch("/api/jobs", {
       method: "POST",
       credentials: "include",
@@ -79,6 +82,8 @@ export default function DataEntry() {
       body: JSON.stringify({
         shipId: jobShipId,
         department: jobDept,
+        workCenterCode: wc?.code ?? null,
+        woNumber: `WO-MAN-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         jobDescription: jobDesc,
         allocatedHours: jobAlloc,
         actualHours: jobActual,

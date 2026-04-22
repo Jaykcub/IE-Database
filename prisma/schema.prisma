@@ -6,27 +6,106 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id                  Int                   @id @default(autoincrement())
+  name                String
+  role                String // TECHNICIAN | FOREMAN | ENGINEER | IE | ADMIN
+  departmentScope     String?
+  title               String?
+  workSessions        WorkSession[]
+  assistanceFrom      AssistanceRequest[]   @relation("AssistanceFrom")
+  assistanceResolved  AssistanceRequest[]   @relation("AssistanceResolved")
+  callBoardOpened     CallBoardEntry[]      @relation("CallOpenedBy")
+  callBoardEngineer   CallBoardEntry[]      @relation("CallEngineer")
+  jobsSignedOff       Job[]                 @relation("SignedOffJobs")
+}
+
 model Ship {
-  id          Int      @id @default(autoincrement())
-  hullNumber  Int      @unique
-  shipClass   String
-  metrics     Metric[]
-  jobs        Job[]
+  id           Int       @id @default(autoincrement())
+  hullNumber   Int       @unique
+  shipClass    String
+  displayLabel String?
+  metrics      Metric[]
+  jobs         Job[]
 }
 
 model Job {
-  id              Int      @id @default(autoincrement())
-  shipId          Int
-  department      String
-  jobDescription  String
-  allocatedHours  Float
-  actualHours     Float?
-  materialCost    Float?
-  notes           String?
-  status          String   @default("OPEN")
-  dateCreated     DateTime @default(now())
+  id               Int                   @id @default(autoincrement())
+  shipId           Int
+  woNumber         String                @unique
+  department       String
+  workCenterCode   String?
+  jobDescription   String
+  phase            String?
+  buildContext     String?
+  allocatedHours   Float
+  actualHours      Float?
+  materialCost     Float?
+  notes            String?
+  status           String                @default("OPEN")
+  dateCreated      DateTime              @default(now())
+  completedAt      DateTime?
+  signedOffById    Int?
+  signedOffBy      User?                 @relation("SignedOffJobs", fields: [signedOffById], references: [id])
+  ship             Ship                  @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  workSessions     WorkSession[]
+  assistance       AssistanceRequest[]
+  callBoard        CallBoardEntry[]
 
-  ship Ship @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  @@index([shipId])
+  @@index([status])
+  @@index([department])
+}
+
+model WorkSession {
+  id        Int       @id @default(autoincrement())
+  jobId     Int
+  userId    Int
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([jobId])
+  @@index([userId])
+}
+
+model AssistanceRequest {
+  id           Int       @id @default(autoincrement())
+  jobId        Int
+  fromUserId   Int
+  message      String
+  status       String    @default("PENDING")
+  foremanNote  String?
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+  resolvedById Int?
+  job          Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  fromUser     User      @relation("AssistanceFrom", fields: [fromUserId], references: [id])
+  resolvedBy   User?     @relation("AssistanceResolved", fields: [resolvedById], references: [id])
+
+  @@index([jobId])
+  @@index([status])
+}
+
+model CallBoardEntry {
+  id               Int       @id @default(autoincrement())
+  jobId            Int
+  openedById       Int
+  category         String
+  description      String
+  status           String    @default("OPEN")
+  engineerId       Int?
+  engineerResponse String?
+  resolutionNote   String?
+  createdAt        DateTime  @default(now())
+  closedAt         DateTime?
+  job              Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  openedBy         User      @relation("CallOpenedBy", fields: [openedById], references: [id])
+  engineer         User?     @relation("CallEngineer", fields: [engineerId], references: [id])
+
+  @@index([jobId])
+  @@index([status])
 }
 
 model Metric {
@@ -36,6 +115,5 @@ model Metric {
   category     String
   value        Float
   dateRecorded DateTime @default(now())
-
-  ship Ship @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  ship         Ship     @relation(fields: [shipId], references: [id], onDelete: Cascade)
 }

@@ -17,12 +17,16 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const { shipClass, hullNumber } = await request.json();
+    const body = await request.json();
+    const { shipClass, hullNumber } = body;
+    const displayLabel =
+      body.displayLabel || `${shipClass} ${parseInt(hullNumber, 10)}`;
     const newShip = await prisma.ship.create({
       data: {
         shipClass,
-        hullNumber: parseInt(hullNumber)
-      }
+        hullNumber: parseInt(hullNumber, 10),
+        displayLabel,
+      },
     });
     return NextResponse.json(newShip);
   } catch (error) {

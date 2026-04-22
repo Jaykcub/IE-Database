@@ -705,3 +705,238 @@ a {
     grid-column: span 1;
   }
 }
+
+/* Jobs workspace — expanded */
+.jobs-pill--call {
+  color: #fdba74;
+  background: rgba(251, 146, 60, 0.12);
+  border: 1px solid rgba(251, 146, 60, 0.35);
+}
+
+.jobs-main-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.jobs-main-tab {
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--hb-border);
+  background: rgba(12, 18, 25, 0.5);
+  color: var(--hb-muted);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.jobs-main-tab:hover {
+  border-color: rgba(212, 175, 122, 0.35);
+  color: var(--hb-ink);
+}
+
+.jobs-main-tab--on {
+  border-color: rgba(45, 212, 191, 0.45);
+  color: var(--hb-teal);
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.jobs-identity {
+  padding: 1.25rem 1.35rem;
+  margin-bottom: 1rem;
+}
+
+.jobs-identity-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.jobs-identity-select {
+  min-width: min(100%, 380px);
+}
+
+.jobs-identity-hint {
+  font-size: 0.82rem;
+  color: var(--hb-muted);
+  margin-top: 0.35rem;
+  max-width: 52ch;
+}
+
+.jobs-identity-active {
+  margin-top: 0.85rem;
+  font-size: 0.9rem;
+}
+
+.jobs-identity-warn {
+  margin-top: 0.85rem;
+  color: var(--hb-warn);
+  font-size: 0.88rem;
+}
+
+.jobs-banner {
+  margin-bottom: 1rem;
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  background: rgba(45, 212, 191, 0.08);
+  font-size: 0.9rem;
+}
+
+.jobs-section-title {
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.jobs-inbox {
+  padding: 1.35rem;
+  margin-bottom: 1rem;
+}
+
+.jobs-inbox-list {
+  list-style: none;
+  margin-top: 1rem;
+}
+
+.jobs-inbox-item {
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 14px;
+  border: 1px solid var(--hb-border);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.jobs-inbox-msg {
+  margin: 0.5rem 0;
+  line-height: 1.45;
+}
+
+.jobs-inbox-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--hb-muted);
+}
+
+.jobs-toolkit {
+  padding: 1.35rem;
+  margin-bottom: 1rem;
+}
+
+.jobs-toolkit-list {
+  margin-top: 0.75rem;
+  padding-left: 1.25rem;
+  line-height: 1.65;
+  color: var(--hb-muted);
+}
+
+.jobs-toolkit-list li {
+  margin-bottom: 0.65rem;
+}
+
+.jobs-modal--wide {
+  max-width: 720px;
+  max-height: min(92vh, 900px);
+  overflow-y: auto;
+}
+
+.jobs-modal-sub {
+  font-size: 0.85rem;
+  color: var(--hb-muted);
+  margin-bottom: 0.75rem;
+}
+
+.jobs-detail-desc {
+  line-height: 1.55;
+  margin-bottom: 1rem;
+}
+
+.jobs-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.65rem;
+  margin: 1rem 0;
+}
+
+.jobs-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.jobs-metric-val {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.jobs-subhead {
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hb-muted);
+  margin: 1rem 0 0.5rem;
+}
+
+.jobs-timeline {
+  font-size: 0.88rem;
+  color: var(--hb-muted);
+  padding-left: 1.2rem;
+}
+
+.jobs-timeline li {
+  margin-bottom: 0.35rem;
+}
+
+.jobs-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.jobs-mini-list {
+  font-size: 0.88rem;
+  padding-left: 1.2rem;
+  margin-bottom: 1rem;
+  color: var(--hb-muted);
+}
+
+.jobs-mini-list li {
+  margin-bottom: 0.45rem;
+}
+
+.jobs-foreman-note,
+.jobs-eng {
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  background: rgba(212, 175, 122, 0.08);
+  border: 1px solid rgba(212, 175, 122, 0.2);
+  color: var(--hb-ink);
+}
+
+.jobs-archive-banner {
+  margin: 1rem 0;
+  padding: 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  background: rgba(74, 222, 128, 0.08);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .jobs-metrics-row {
+    grid-template-columns: 1fr;
+  }
+}

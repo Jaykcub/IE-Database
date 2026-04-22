@@ -38,7 +38,7 @@ Full-stack **Next.js** app (app-only repo) for ship construction metrics and job
 
 3. **Sign in (demo)**
 
-   Open `/login` and use **`Admin`** / **`Admin`**. All app routes assume **admin** for now.
+   Open `/login` and use **`Admin`** / **`Admin`** (case-insensitive). After sign-in you land on **`/jobs`**. Then pick a **yard identity** (technician, foreman, engineer, etc.) in the jobs console — that drives clock-in, foreman assistance inbox, and engineering call-board permissions.
 
 4. **Work centers (demo)**
 
