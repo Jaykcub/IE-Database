@@ -54,7 +54,7 @@ async function main() {
     { shipClass: "DDG", hullNumber: 129 },
     { shipClass: "LHA", hullNumber: 8 },
     { shipClass: "LPD", hullNumber: 28 },
-    { shipClass: "NSC", hullNumber: 10 },
+    { shipClass: "DDGX", hullNumber: 3 },
   ];
 
   const ships = [];
