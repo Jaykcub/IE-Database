@@ -16,7 +16,7 @@ Full-stack **Next.js** app (app-only repo) for ship construction metrics and job
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) 20+
-- [pnpm](https://pnpm.io/installation) 9 (`corepack enable` then `corepack prepare pnpm@9.15.4 --activate`)
+- [pnpm](https://pnpm.io/installation) 10 (`corepack enable` then `corepack prepare pnpm@10.33.1 --activate`)
 
 ## Local development
 
