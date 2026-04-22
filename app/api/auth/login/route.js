@@ -13,10 +13,10 @@ export async function POST(request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const username = String(body?.username ?? "").trim();
-  const password = String(body?.password ?? "");
+  const username = String(body?.username ?? "").trim().toLowerCase();
+  const password = String(body?.password ?? "").trim().toLowerCase();
 
-  if (username !== "Admin" || password !== "Admin") {
+  if (username !== "admin" || password !== "admin") {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 

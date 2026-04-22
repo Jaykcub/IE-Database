@@ -17,7 +17,9 @@ export async function middleware(request) {
     ok = false;
   }
 
-  if (pathname === "/api/auth/login") {
+  const isLoginApi =
+    pathname === "/api/auth/login" || pathname.startsWith("/api/auth/login/");
+  if (isLoginApi) {
     return NextResponse.next();
   }
 
