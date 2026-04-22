@@ -38,6 +38,14 @@ model Job {
   jobDescription   String
   phase            String?
   buildContext     String?
+  /** Demo HII-style routing: work package / WP release id */
+  workPackageCode  String?
+  /** Demo: drawing index + revision (not government data) */
+  drawingRef       String?
+  /** Demo: zone / frame / staging location */
+  zone             String?
+  /** Demo: line-of-balance or schedule bucket label */
+  scheduleCode     String?
   allocatedHours   Float
   actualHours      Float?
   materialCost     Float?

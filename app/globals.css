@@ -860,6 +860,42 @@ a {
   margin-bottom: 1rem;
 }
 
+.jobs-routing-grid {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) 1fr;
+  gap: 0.35rem 1rem;
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--hb-border);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.jobs-routing-grid dt {
+  color: var(--hb-muted);
+  font-weight: 600;
+}
+
+.jobs-routing-grid dd {
+  margin: 0;
+}
+
+.jobs-toolkit-disclaimer {
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+
+.jobs-escalation-wrap .jobs-table td {
+  vertical-align: top;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.jobs-escalation-wrap {
+  margin: 0.75rem 0 1.25rem;
+}
+
 .jobs-action-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

@@ -32,9 +32,6 @@ export default function AppHeader({ authed }) {
         <Link className="hb-link" href="/jobs">
           Jobs
         </Link>
-        <Link className="hb-link" href="/jobs">
-          Jobs
-        </Link>
         <Link className="hb-link" href="/metrics">
           Metrics
         </Link>

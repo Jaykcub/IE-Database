@@ -30,6 +30,10 @@ export default function DataEntry() {
   const [jobActual, setJobActual] = useState('');
   const [jobCost, setJobCost] = useState('');
   const [jobNotes, setJobNotes] = useState('');
+  const [jobWp, setJobWp] = useState('');
+  const [jobDrawing, setJobDrawing] = useState('');
+  const [jobZone, setJobZone] = useState('');
+  const [jobSchedule, setJobSchedule] = useState('');
   
   useEffect(() => {
     fetch("/api/ships", { credentials: "include" })
@@ -89,6 +93,10 @@ export default function DataEntry() {
         actualHours: jobActual,
         materialCost: jobCost,
         notes: jobNotes,
+        workPackageCode: jobWp || undefined,
+        drawingRef: jobDrawing || undefined,
+        zone: jobZone || undefined,
+        scheduleCode: jobSchedule || undefined,
       }),
     });
     setJobDesc('');
@@ -96,6 +104,10 @@ export default function DataEntry() {
     setJobActual('');
     setJobCost('');
     setJobNotes('');
+    setJobWp('');
+    setJobDrawing('');
+    setJobZone('');
+    setJobSchedule('');
     alert('Job Ticket logged successfully!');
   };
 
@@ -144,6 +156,22 @@ export default function DataEntry() {
             <div className="form-group">
               <label className="form-label">Material Cost (Optional)</label>
               <input type="number" step="0.01" className="form-control" value={jobCost} onChange={e => setJobCost(e.target.value)} placeholder="Material spend..." />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Work package code (optional, demo routing)</label>
+              <input type="text" className="form-control" value={jobWp} onChange={(e) => setJobWp(e.target.value)} placeholder="e.g. WP-2026-DG51-PIP-SVC-1184" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Drawing reference (optional)</label>
+              <input type="text" className="form-control" value={jobDrawing} onChange={(e) => setJobDrawing(e.target.value)} placeholder="e.g. 500-200-8811033 Rev B" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Zone / location (optional)</label>
+              <input type="text" className="form-control" value={jobZone} onChange={(e) => setJobZone(e.target.value)} placeholder="e.g. P-1, Fr 165-210, Port" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Schedule bucket (optional)</label>
+              <input type="text" className="form-control" value={jobSchedule} onChange={(e) => setJobSchedule(e.target.value)} placeholder="e.g. LOB-HULL-14B" />
             </div>
             <div className="form-group">
               <label className="form-label">Notes (Optional)</label>

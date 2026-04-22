@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { INGALLS_PASCAGOULA_WORK_CENTERS } from "@/lib/ingalls-work-centers";
+import {
+  DISCLAIMER,
+  ESCALATION_ROUTING,
+  OPERATIONS_SUMMARY,
+} from "@/lib/yard-escalation";
 
 function fmtHull(ship) {
   if (!ship) return "—";
@@ -116,7 +121,7 @@ export default function JobsWorkspace() {
     const q = search.toLowerCase();
     return jobs.filter((j) => {
       if (!q) return true;
-      const blob = `${j.woNumber} ${j.jobDescription} ${j.department} ${fmtHull(j.ship)} ${j.phase ?? ""} ${j.buildContext ?? ""}`.toLowerCase();
+      const blob = `${j.woNumber} ${j.jobDescription} ${j.department} ${fmtHull(j.ship)} ${j.phase ?? ""} ${j.buildContext ?? ""} ${j.workPackageCode ?? ""} ${j.drawingRef ?? ""} ${j.zone ?? ""} ${j.scheduleCode ?? ""}`.toLowerCase();
       return blob.includes(q);
     });
   }, [jobs, search]);
@@ -392,23 +397,55 @@ export default function JobsWorkspace() {
 
       {tab === "yard" ? (
         <section className="glass-panel jobs-toolkit">
-          <h2 className="jobs-section-title">Manufacturing toolkit (extensible)</h2>
+          <h2 className="jobs-section-title">Yard toolkit — Pascagoula-style coordination</h2>
+          <p className="jobs-muted jobs-toolkit-disclaimer">{DISCLAIMER}</p>
+
+          <h3 className="jobs-subhead">{OPERATIONS_SUMMARY.title}</h3>
+          <ul className="jobs-toolkit-list">
+            {OPERATIONS_SUMMARY.bullets.map((b, i) => (
+              <li key={i}>{b}</li>
+            ))}
+          </ul>
+
+          <h3 className="jobs-subhead">Who to call first (Hullboard mapping)</h3>
+          <div className="jobs-table-wrap jobs-escalation-wrap">
+            <table className="jobs-table">
+              <thead>
+                <tr>
+                  <th>Situation</th>
+                  <th>First response</th>
+                  <th>Escalate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ESCALATION_ROUTING.map((row) => (
+                  <tr key={row.situation}>
+                    <td>{row.situation}</td>
+                    <td>{row.firstCall}</td>
+                    <td>{row.escalate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <h3 className="jobs-subhead">Product hooks (demo)</h3>
           <ul className="jobs-toolkit-list">
             <li>
-              <strong>Earned hours vs planned</strong> — driven by work sessions on
-              each WO (rolling up to hull / program for Power BI later).
+              <strong>Earned vs planned hours</strong> — work sessions on each WO roll
+              up to hull and program metrics.
             </li>
             <li>
-              <strong>Material readiness</strong> — placeholder for SAP integration;
-              tie ECNs to jobs when connected.
+              <strong>Material readiness</strong> — placeholder for ERP; tie ECNs to
+              jobs when connected.
             </li>
             <li>
-              <strong>Constraint log</strong> — assistance + call-board capture the
-              “why” behind delay (skills, engineering, material).
+              <strong>Constraint log</strong> — Foreman assistance and Engineering
+              board capture why work slipped (skills, drawing, material).
             </li>
             <li>
-              <strong>Quality chain</strong> — sign-off user + timestamps stored on
-              archived jobs for audit.
+              <strong>Quality chain</strong> — sign-off and timestamps on completed
+              jobs for audit trail.
             </li>
           </ul>
         </section>
@@ -543,6 +580,37 @@ export default function JobsWorkspace() {
               {selected.ship?.displayLabel ? ` · ${selected.ship.displayLabel}` : ""}
             </p>
             <p className="jobs-detail-desc">{selected.jobDescription}</p>
+            {(selected.workPackageCode ||
+              selected.drawingRef ||
+              selected.zone ||
+              selected.scheduleCode) ? (
+              <dl className="jobs-routing-grid">
+                {selected.workPackageCode ? (
+                  <>
+                    <dt>Work package</dt>
+                    <dd className="jobs-mono">{selected.workPackageCode}</dd>
+                  </>
+                ) : null}
+                {selected.drawingRef ? (
+                  <>
+                    <dt>Drawing</dt>
+                    <dd className="jobs-mono">{selected.drawingRef}</dd>
+                  </>
+                ) : null}
+                {selected.zone ? (
+                  <>
+                    <dt>Zone / location</dt>
+                    <dd>{selected.zone}</dd>
+                  </>
+                ) : null}
+                {selected.scheduleCode ? (
+                  <>
+                    <dt>Schedule bucket</dt>
+                    <dd className="jobs-mono">{selected.scheduleCode}</dd>
+                  </>
+                ) : null}
+              </dl>
+            ) : null}
             {selected.buildContext ? (
               <p className="jobs-muted">
                 <strong>Build context:</strong> {selected.buildContext}
