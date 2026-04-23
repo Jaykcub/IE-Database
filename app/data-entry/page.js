@@ -61,6 +61,21 @@ export default function DataEntry() {
       .catch(() => setActor(null));
   }, []);
 
+  if (actor?.role === "TECHNICIAN") {
+    return (
+      <div className="page-container animate-fade-in">
+        <div className="glass-panel" style={{ padding: "2rem" }}>
+          <h1 style={{ fontSize: "1.6rem", marginBottom: "0.5rem" }}>
+            Data Entry Hidden for Technician Role
+          </h1>
+          <p style={{ opacity: 0.85 }}>
+            This area is restricted to planning and management roles. Technician mode is focused on active work orders.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const handleAddShip = async (e) => {
     e.preventDefault();
     setAddingShip(true);

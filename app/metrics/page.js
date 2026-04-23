@@ -14,6 +14,7 @@ import {
 import { METRIC_DEPARTMENTS } from "@/lib/metric-catalog";
 
 export default function MetricsPage() {
+  const [actor, setActor] = useState(null);
   const [ships, setShips] = useState([]);
   const [ship1, setShip1] = useState("");
   const [ship2, setShip2] = useState("");
@@ -22,6 +23,11 @@ export default function MetricsPage() {
   const [department, setDepartment] = useState("");
 
   useEffect(() => {
+    fetch("/api/session", { credentials: "include" })
+      .then((res) => res.json())
+      .then((d) => setActor(d?.user ?? null))
+      .catch(() => setActor(null));
+
     fetch("/api/ships", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
@@ -110,6 +116,21 @@ export default function MetricsPage() {
       compactDisplay: "short",
     }).format(val);
   };
+
+  if (actor?.role === "TECHNICIAN") {
+    return (
+      <div className="page-container animate-fade-in">
+        <div className="glass-panel" style={{ padding: "2rem" }}>
+          <h1 style={{ fontSize: "1.6rem", marginBottom: "0.5rem" }}>
+            Metrics Hidden for Technician Role
+          </h1>
+          <p style={{ opacity: 0.85 }}>
+            This view is available to foreman and above. Technician mode is focused on job execution.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-container animate-fade-in">
