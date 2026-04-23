@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getActorUserId } from "@/lib/session-user";
+import { getActorUser } from "@/lib/session-user";
+import { canEscalateFromJob } from "@/lib/job-access";
 
 export async function POST(request, props) {
   try {
     const params = await props.params;
     const jobId = parseInt(params.jobId, 10);
-    const actorId = await getActorUserId();
-    if (!actorId) {
+    const actor = await getActorUser();
+    if (!actor) {
       return NextResponse.json({ error: "Select yard identity first." }, { status: 401 });
     }
 
@@ -19,6 +20,16 @@ export async function POST(request, props) {
 
     const job = await prisma.job.findUnique({ where: { id: jobId } });
     if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    if (!canEscalateFromJob(actor, job)) {
+      return NextResponse.json(
+        {
+          error:
+            "Assistance requests must be tied to work in your shop. Switch identity or pick a job in your department.",
+        },
+        { status: 403 },
+      );
+    }
+    const actorId = actor.id;
 
     const row = await prisma.assistanceRequest.create({
       data: {

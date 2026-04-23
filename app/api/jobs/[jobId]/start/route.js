@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getActorUserId } from "@/lib/session-user";
+import { getActorUser } from "@/lib/session-user";
+import { canRunOwnLaborOnJob } from "@/lib/job-access";
 
 export async function POST(_, props) {
   try {
     const params = await props.params;
     const jobId = parseInt(params.jobId, 10);
-    const actorId = await getActorUserId();
-    if (!actorId) {
+    const actor = await getActorUser();
+    if (!actor) {
       return NextResponse.json(
         { error: "Select who you are (yard identity) in the jobs header." },
         { status: 401 },
@@ -16,6 +17,16 @@ export async function POST(_, props) {
 
     const job = await prisma.job.findUnique({ where: { id: jobId } });
     if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    if (!canRunOwnLaborOnJob(actor, job)) {
+      return NextResponse.json(
+        {
+          error:
+            "This work order is not in your shop. Only jobs matching your department can be clocked in.",
+        },
+        { status: 403 },
+      );
+    }
+    const actorId = actor.id;
     if (job.status === "COMPLETED") {
       return NextResponse.json({ error: "Job already completed" }, { status: 400 });
     }

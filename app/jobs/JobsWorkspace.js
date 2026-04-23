@@ -9,6 +9,11 @@ import {
   OPERATIONS_SUMMARY,
 } from "@/lib/yard-escalation";
 import HiiWorkOrderSheet from "./HiiWorkOrderSheet";
+import {
+  canRunOwnLaborOnJob,
+  canClearShopLaborOnJob,
+  canSignOffCompleteJob,
+} from "@/lib/job-access";
 
 function fmtHull(ship) {
   if (!ship) return "—";
@@ -159,7 +164,32 @@ export default function JobsWorkspace() {
     return Array.from(keys).sort();
   }, [jobs]);
 
-  async function postJobAction(path) {
+  const activeSessionForActor =
+    actor &&
+    selected?.workSessions?.find((s) => s.userId === actor.id && !s.endedAt);
+
+  const laborOnSelected = useMemo(() => {
+    if (!actor || !selected) {
+      return {
+        canClockIn: false,
+        canShopClearLabor: false,
+        canComplete: false,
+        canEscalateFromJob: false,
+      };
+    }
+    return {
+      canClockIn: canRunOwnLaborOnJob(actor, selected),
+      canShopClearLabor: canClearShopLaborOnJob(actor, selected),
+      canComplete: canSignOffCompleteJob(actor, selected),
+      canEscalateFromJob: canRunOwnLaborOnJob(actor, selected),
+    };
+  }, [actor, selected]);
+
+  const hasOpenLaborOnSelected = Boolean(
+    selected?.workSessions?.some((s) => !s.endedAt),
+  );
+
+  async function postJobAction(path, extra = {}) {
     if (!selected?.id) {
       setMsg("Select a saved work order.");
       return;
@@ -169,7 +199,7 @@ export default function JobsWorkspace() {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: "{}",
+      body: JSON.stringify(extra),
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) {
@@ -186,6 +216,10 @@ export default function JobsWorkspace() {
 
   async function submitAssistance() {
     if (!selected?.id || !assistMsg.trim()) return;
+    if (!laborOnSelected.canEscalateFromJob) {
+      setMsg("Assistance is limited to work orders in your shop.");
+      return;
+    }
     const r = await fetch(`/api/jobs/${selected.id}/assistance`, {
       method: "POST",
       credentials: "include",
@@ -205,6 +239,10 @@ export default function JobsWorkspace() {
 
   async function submitCallBoard() {
     if (!selected?.id || !cbDesc.trim()) return;
+    if (!laborOnSelected.canEscalateFromJob) {
+      setMsg("Engineering holds can only be opened from jobs in your shop.");
+      return;
+    }
     const r = await fetch(`/api/jobs/${selected.id}/call-board`, {
       method: "POST",
       credentials: "include",
@@ -258,10 +296,6 @@ export default function JobsWorkspace() {
     }
   }
 
-  const activeSessionForActor =
-    actor &&
-    selected?.workSessions?.find((s) => s.userId === actor.id && !s.endedAt);
-
   return (
     <div className="page-container animate-fade-in jobs-page">
       <header className="jobs-hero">
@@ -281,8 +315,9 @@ export default function JobsWorkspace() {
           <div>
             <span className="jobs-wc-label">Yard identity (demo role-play)</span>
             <p className="jobs-identity-hint">
-              Technicians clock work; foremen see assistance for their shop;
-              engineers close call-board items.
+              Technicians and foremen clock in only on work orders for their shop
+              (department). Foremen can end all active clock-ins on jobs in their
+              shop. Engineers / IE / admin can cross shops.
             </p>
           </div>
           <select
@@ -716,7 +751,16 @@ export default function JobsWorkspace() {
                   <button
                     type="button"
                     className="btn-primary"
-                    disabled={!actor || selected.status === "COMPLETED"}
+                    disabled={
+                      !actor ||
+                      selected.status === "COMPLETED" ||
+                      !laborOnSelected.canClockIn
+                    }
+                    title={
+                      !laborOnSelected.canClockIn && actor
+                        ? "Clock-in is limited to work orders in your shop (or use an engineer / IE / admin identity)."
+                        : undefined
+                    }
                     onClick={() => postJobAction("start")}
                   >
                     {activeSessionForActor ? "Clocked in ✓" : "Work started (clock in)"}
@@ -727,12 +771,32 @@ export default function JobsWorkspace() {
                     disabled={!activeSessionForActor}
                     onClick={() => postJobAction("stop")}
                   >
-                    Pause / clock out
+                    Pause / clock out (self)
                   </button>
+                  {laborOnSelected.canShopClearLabor ? (
+                    <button
+                      type="button"
+                      className="jobs-detail-btn"
+                      disabled={!hasOpenLaborOnSelected}
+                      title="Ends every active clock-in on this work order for your shop."
+                      onClick={() => postJobAction("stop", { shopClear: true })}
+                    >
+                      End all shop clock-ins
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="jobs-detail-btn"
-                    disabled={!actor || selected.status === "COMPLETED"}
+                    disabled={
+                      !actor ||
+                      selected.status === "COMPLETED" ||
+                      !laborOnSelected.canComplete
+                    }
+                    title={
+                      !laborOnSelected.canComplete && actor
+                        ? "Complete is for foremen (own shop), engineers, IE, or admin — not technicians."
+                        : undefined
+                    }
                     onClick={() => postJobAction("complete")}
                   >
                     Complete &amp; sign off
@@ -782,6 +846,12 @@ export default function JobsWorkspace() {
                   <button
                     type="button"
                     className="btn-primary"
+                    disabled={!laborOnSelected.canEscalateFromJob}
+                    title={
+                      !laborOnSelected.canEscalateFromJob
+                        ? "Requests must be for a job in your shop."
+                        : undefined
+                    }
                     onClick={submitAssistance}
                   >
                     Request foreman assistance
@@ -822,6 +892,12 @@ export default function JobsWorkspace() {
                   <button
                     type="button"
                     className="btn-primary"
+                    disabled={!laborOnSelected.canEscalateFromJob}
+                    title={
+                      !laborOnSelected.canEscalateFromJob
+                        ? "Escalations must be tied to a job in your shop."
+                        : undefined
+                    }
                     onClick={submitCallBoard}
                   >
                     Escalate to engineering board

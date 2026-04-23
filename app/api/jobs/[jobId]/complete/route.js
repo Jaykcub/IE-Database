@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { recalcJobHoursFromSessions } from "@/lib/job-hours";
-import { getActorUserId } from "@/lib/session-user";
+import { getActorUser } from "@/lib/session-user";
+import { canSignOffCompleteJob } from "@/lib/job-access";
 
 export async function POST(_, props) {
   try {
     const params = await props.params;
     const jobId = parseInt(params.jobId, 10);
-    const actorId = await getActorUserId();
-    if (!actorId) {
+    const actor = await getActorUser();
+    if (!actor) {
       return NextResponse.json(
         { error: "Select who you are (yard identity) first." },
         { status: 401 },
@@ -17,6 +18,16 @@ export async function POST(_, props) {
 
     const job = await prisma.job.findUnique({ where: { id: jobId } });
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!canSignOffCompleteJob(actor, job)) {
+      return NextResponse.json(
+        {
+          error:
+            "You cannot sign off this work order. Technicians cannot complete jobs; foremen only in their own shop; engineers / IE / admin may complete any job.",
+        },
+        { status: 403 },
+      );
+    }
+    const actorId = actor.id;
 
     await prisma.workSession.updateMany({
       where: { jobId, userId: actorId, endedAt: null },
