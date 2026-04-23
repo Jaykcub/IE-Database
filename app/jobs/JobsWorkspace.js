@@ -7,6 +7,8 @@ import {
   ESCALATION_ROUTING,
   OPERATIONS_SUMMARY,
 } from "@/lib/yard-escalation";
+import { buildDemoJobsForWorkCenter } from "@/lib/demo-work-orders";
+import HiiWorkOrderSheet from "./HiiWorkOrderSheet";
 
 function fmtHull(ship) {
   if (!ship) return "—";
@@ -17,6 +19,11 @@ function sessionDuration(s) {
   const a = new Date(s.startedAt).getTime();
   const b = s.endedAt ? new Date(s.endedAt).getTime() : Date.now();
   return Math.max(0, (b - a) / 3600000);
+}
+
+function trunc(s, n) {
+  if (!s) return "—";
+  return s.length <= n ? s : `${s.slice(0, n - 1)}…`;
 }
 
 export default function JobsWorkspace() {
@@ -37,6 +44,7 @@ export default function JobsWorkspace() {
   const [foremanNote, setForemanNote] = useState("");
   const [engBody, setEngBody] = useState({ response: "", resolution: "" });
   const [msg, setMsg] = useState("");
+  const [detailTab, setDetailTab] = useState("document");
 
   const loadActor = useCallback(async () => {
     const r = await fetch("/api/session", { credentials: "include" });
@@ -126,13 +134,28 @@ export default function JobsWorkspace() {
     });
   }, [jobs, search]);
 
+  /** When a work center is selected and the API returns no rows, show generic demo WOs. */
+  const tableRows = useMemo(() => {
+    const showDemo =
+      workCenterKey &&
+      tab === "queue" &&
+      filtered.length === 0 &&
+      !search.trim() &&
+      jobs.length === 0;
+    if (showDemo) return buildDemoJobsForWorkCenter(workCenterKey);
+    return filtered;
+  }, [filtered, workCenterKey, tab, search, jobs.length]);
+
   const shipOptions = useMemo(() => {
     const keys = new Set(jobs.map((j) => fmtHull(j.ship)));
     return Array.from(keys).sort();
   }, [jobs]);
 
   async function postJobAction(path) {
-    if (!selected) return;
+    if (!selected || selected.isDemo) {
+      setMsg("Clock actions apply to database jobs — seed the DB or pick a non-demo row.");
+      return;
+    }
     setMsg("");
     const r = await fetch(`/api/jobs/${selected.id}/${path}`, {
       method: "POST",
@@ -155,6 +178,10 @@ export default function JobsWorkspace() {
 
   async function submitAssistance() {
     if (!selected || !assistMsg.trim()) return;
+    if (selected.isDemo) {
+      setMsg("Demo work order — seed the database to request foreman assistance.");
+      return;
+    }
     const r = await fetch(`/api/jobs/${selected.id}/assistance`, {
       method: "POST",
       credentials: "include",
@@ -174,6 +201,10 @@ export default function JobsWorkspace() {
 
   async function submitCallBoard() {
     if (!selected || !cbDesc.trim()) return;
+    if (selected.isDemo) {
+      setMsg("Demo work order — seed the database to post to engineering.");
+      return;
+    }
     const r = await fetch(`/api/jobs/${selected.id}/call-board`, {
       method: "POST",
       credentials: "include",
@@ -511,11 +542,22 @@ export default function JobsWorkspace() {
             {loading ? (
               <div className="jobs-loading">Loading work orders…</div>
             ) : (
-              <table className="jobs-table">
+              <>
+                {tableRows[0]?.isDemo ? (
+                  <p className="jobs-demo-banner" role="note">
+                    Showing illustrative generic work orders for{" "}
+                    <strong>{workCenterKey}</strong> — seed the database for live hull
+                    data. Document view matches a typical yard routing-sheet layout (not an
+                    official HII controlled form).
+                  </p>
+                ) : null}
+              <table className="jobs-table jobs-table--dense">
                 <thead>
                   <tr>
                     <th>WO #</th>
                     <th>Hull</th>
+                    <th>Work package</th>
+                    <th>Zone / location</th>
                     <th>Center</th>
                     <th>Phase</th>
                     <th>Status</th>
@@ -523,10 +565,16 @@ export default function JobsWorkspace() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((job) => (
-                    <tr key={job.id}>
+                  {tableRows.map((job) => (
+                    <tr key={job.id ?? job.woNumber}>
                       <td className="jobs-mono">{job.woNumber}</td>
                       <td>{fmtHull(job.ship)}</td>
+                      <td className="jobs-cell-muted" title={job.workPackageCode ?? ""}>
+                        {trunc(job.workPackageCode ?? "—", 28)}
+                      </td>
+                      <td className="jobs-cell-muted" title={job.zone ?? ""}>
+                        {trunc(job.zone ?? "—", 36)}
+                      </td>
                       <td>{job.department}</td>
                       <td>{job.phase ?? "—"}</td>
                       <td>
@@ -540,24 +588,30 @@ export default function JobsWorkspace() {
                         <button
                           type="button"
                           className="jobs-detail-btn"
-                          onClick={() => setSelected(job)}
+                          onClick={() => {
+                            setDetailTab("document");
+                            setSelected(job);
+                          }}
                         >
-                          Open
+                          View
                         </button>
                       </td>
                     </tr>
                   ))}
-                  {filtered.length === 0 ? (
+                  {tableRows.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="jobs-empty">
-                        No rows — run{" "}
-                        <code className="jobs-code">pnpm db:seed</code> after schema
-                        update.
+                      <td colSpan={8} className="jobs-empty">
+                        No rows in this view. If the database is empty: set{" "}
+                        <code className="jobs-code">DATABASE_URL</code>, run{" "}
+                        <code className="jobs-code">pnpm db:push</code> then{" "}
+                        <code className="jobs-code">pnpm db:seed</code>. Otherwise clear
+                        hull filters or choose a different work center.
                       </td>
                     </tr>
                   ) : null}
                 </tbody>
               </table>
+              </>
             )}
           </section>
         </>
@@ -565,7 +619,7 @@ export default function JobsWorkspace() {
 
       {selected ? (
         <div className="jobs-modal-backdrop" role="dialog" aria-modal="true">
-          <div className="jobs-modal glass-panel jobs-modal--wide">
+          <div className="jobs-modal glass-panel jobs-modal--wide jobs-modal--detail">
             <button
               type="button"
               className="jobs-modal-x"
@@ -574,179 +628,227 @@ export default function JobsWorkspace() {
             >
               ×
             </button>
-            <h2 className="jobs-modal-title">{selected.woNumber}</h2>
-            <p className="jobs-modal-sub">
-              {fmtHull(selected.ship)}
-              {selected.ship?.displayLabel ? ` · ${selected.ship.displayLabel}` : ""}
-            </p>
-            <p className="jobs-detail-desc">{selected.jobDescription}</p>
-            {(selected.workPackageCode ||
-              selected.drawingRef ||
-              selected.zone ||
-              selected.scheduleCode) ? (
-              <dl className="jobs-routing-grid">
-                {selected.workPackageCode ? (
-                  <>
-                    <dt>Work package</dt>
-                    <dd className="jobs-mono">{selected.workPackageCode}</dd>
-                  </>
+            <div className="jobs-modal-heading">
+              <div>
+                <h2 className="jobs-modal-title">{selected.woNumber}</h2>
+                <p className="jobs-modal-sub">
+                  {fmtHull(selected.ship)}
+                  {selected.ship?.displayLabel ? ` · ${selected.ship.displayLabel}` : ""}
+                </p>
+                {selected.isDemo ? (
+                  <p className="jobs-demo-inline">
+                    Demo row — use Hullboard actions only after seeding live jobs.
+                  </p>
                 ) : null}
-                {selected.drawingRef ? (
-                  <>
-                    <dt>Drawing</dt>
-                    <dd className="jobs-mono">{selected.drawingRef}</dd>
-                  </>
-                ) : null}
-                {selected.zone ? (
-                  <>
-                    <dt>Zone / location</dt>
-                    <dd>{selected.zone}</dd>
-                  </>
-                ) : null}
-                {selected.scheduleCode ? (
-                  <>
-                    <dt>Schedule bucket</dt>
-                    <dd className="jobs-mono">{selected.scheduleCode}</dd>
-                  </>
-                ) : null}
-              </dl>
-            ) : null}
-            {selected.buildContext ? (
-              <p className="jobs-muted">
-                <strong>Build context:</strong> {selected.buildContext}
-              </p>
-            ) : null}
-
-            <div className="jobs-action-grid">
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={!actor || selected.status === "COMPLETED"}
-                onClick={() => postJobAction("start")}
-              >
-                {activeSessionForActor ? "Clocked in ✓" : "Work started (clock in)"}
-              </button>
-              <button
-                type="button"
-                className="jobs-detail-btn"
-                disabled={!activeSessionForActor}
-                onClick={() => postJobAction("stop")}
-              >
-                Pause / clock out
-              </button>
-              <button
-                type="button"
-                className="jobs-detail-btn"
-                disabled={!actor || selected.status === "COMPLETED"}
-                onClick={() => postJobAction("complete")}
-              >
-                Complete &amp; sign off
-              </button>
+              </div>
+              <nav className="jobs-detail-tabs" aria-label="Work order sections">
+                <button
+                  type="button"
+                  className={`jobs-detail-tab ${detailTab === "document" ? "jobs-detail-tab--on" : ""}`}
+                  onClick={() => setDetailTab("document")}
+                >
+                  Work order
+                </button>
+                <button
+                  type="button"
+                  className={`jobs-detail-tab ${detailTab === "execute" ? "jobs-detail-tab--on" : ""}`}
+                  onClick={() => setDetailTab("execute")}
+                >
+                  Hullboard actions
+                </button>
+              </nav>
             </div>
 
-            <div className="jobs-metrics-row">
-              <div>
-                <span className="jobs-muted">Planned h</span>
-                <div className="jobs-metric-val">{selected.allocatedHours}</div>
+            {detailTab === "document" ? (
+              <div className="jobs-modal-sheet">
+                <HiiWorkOrderSheet job={selected} />
               </div>
-              <div>
-                <span className="jobs-muted">Recorded h (sessions)</span>
-                <div className="jobs-metric-val">
-                  {selected.actualHours ?? "—"}
+            ) : (
+              <>
+                <p className="jobs-detail-desc">{selected.jobDescription}</p>
+                {(selected.workPackageCode ||
+                  selected.drawingRef ||
+                  selected.zone ||
+                  selected.scheduleCode) ? (
+                  <dl className="jobs-routing-grid">
+                    {selected.workPackageCode ? (
+                      <>
+                        <dt>Work package</dt>
+                        <dd className="jobs-mono">{selected.workPackageCode}</dd>
+                      </>
+                    ) : null}
+                    {selected.drawingRef ? (
+                      <>
+                        <dt>Drawing</dt>
+                        <dd className="jobs-mono">{selected.drawingRef}</dd>
+                      </>
+                    ) : null}
+                    {selected.zone ? (
+                      <>
+                        <dt>Zone / location</dt>
+                        <dd>{selected.zone}</dd>
+                      </>
+                    ) : null}
+                    {selected.scheduleCode ? (
+                      <>
+                        <dt>Schedule bucket</dt>
+                        <dd className="jobs-mono">{selected.scheduleCode}</dd>
+                      </>
+                    ) : null}
+                  </dl>
+                ) : null}
+                {selected.buildContext ? (
+                  <p className="jobs-muted">
+                    <strong>Build context:</strong> {selected.buildContext}
+                  </p>
+                ) : null}
+
+                <div className="jobs-action-grid">
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={
+                      selected.isDemo || !actor || selected.status === "COMPLETED"
+                    }
+                    onClick={() => postJobAction("start")}
+                  >
+                    {activeSessionForActor ? "Clocked in ✓" : "Work started (clock in)"}
+                  </button>
+                  <button
+                    type="button"
+                    className="jobs-detail-btn"
+                    disabled={selected.isDemo || !activeSessionForActor}
+                    onClick={() => postJobAction("stop")}
+                  >
+                    Pause / clock out
+                  </button>
+                  <button
+                    type="button"
+                    className="jobs-detail-btn"
+                    disabled={
+                      selected.isDemo || !actor || selected.status === "COMPLETED"
+                    }
+                    onClick={() => postJobAction("complete")}
+                  >
+                    Complete &amp; sign off
+                  </button>
                 </div>
-              </div>
-              <div>
-                <span className="jobs-muted">Active session</span>
-                <div className="jobs-metric-val">
-                  {activeSessionForActor
-                    ? `${sessionDuration(activeSessionForActor).toFixed(2)} h`
-                    : "—"}
+
+                <div className="jobs-metrics-row">
+                  <div>
+                    <span className="jobs-muted">Planned h</span>
+                    <div className="jobs-metric-val">{selected.allocatedHours}</div>
+                  </div>
+                  <div>
+                    <span className="jobs-muted">Recorded h (sessions)</span>
+                    <div className="jobs-metric-val">
+                      {selected.actualHours ?? "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="jobs-muted">Active session</span>
+                    <div className="jobs-metric-val">
+                      {activeSessionForActor
+                        ? `${sessionDuration(activeSessionForActor).toFixed(2)} h`
+                        : "—"}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <h3 className="jobs-subhead">Labor history</h3>
-            <ul className="jobs-timeline">
-              {(selected.workSessions ?? []).slice(0, 10).map((s) => (
-                <li key={s.id}>
-                  {s.user?.name}: {sessionDuration(s).toFixed(2)} h
-                  {s.endedAt ? "" : " · live"}
-                </li>
-              ))}
-            </ul>
+                <h3 className="jobs-subhead">Labor history</h3>
+                <ul className="jobs-timeline">
+                  {(selected.workSessions ?? []).slice(0, 10).map((s) => (
+                    <li key={s.id}>
+                      {s.user?.name}: {sessionDuration(s).toFixed(2)} h
+                      {s.endedAt ? "" : " · live"}
+                    </li>
+                  ))}
+                </ul>
 
-            <h3 className="jobs-subhead">Assistance &amp; escalations</h3>
-            <div className="jobs-stack">
-              <textarea
-                className="form-control"
-                rows={2}
-                placeholder="Message to shop foreman (pipe/electrical scope)"
-                value={assistMsg}
-                onChange={(e) => setAssistMsg(e.target.value)}
-              />
-              <button type="button" className="btn-primary" onClick={submitAssistance}>
-                Request foreman assistance
-              </button>
-            </div>
-            <ul className="jobs-mini-list">
-              {(selected.assistance ?? []).map((a) => (
-                <li key={a.id}>
-                  <strong>{a.fromUser?.name}:</strong> {a.message}{" "}
-                  <span className="jobs-muted">[{a.status}]</span>
-                  {a.foremanNote ? (
-                    <div className="jobs-foreman-note">
-                      Foreman: {a.foremanNote}
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+                <h3 className="jobs-subhead">Assistance &amp; escalations</h3>
+                <div className="jobs-stack">
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    placeholder="Message to shop foreman (pipe/electrical scope)"
+                    value={assistMsg}
+                    onChange={(e) => setAssistMsg(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={selected.isDemo}
+                    onClick={submitAssistance}
+                  >
+                    Request foreman assistance
+                  </button>
+                </div>
+                <ul className="jobs-mini-list">
+                  {(selected.assistance ?? []).map((a) => (
+                    <li key={a.id}>
+                      <strong>{a.fromUser?.name}:</strong> {a.message}{" "}
+                      <span className="jobs-muted">[{a.status}]</span>
+                      {a.foremanNote ? (
+                        <div className="jobs-foreman-note">
+                          Foreman: {a.foremanNote}
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
 
-            <h3 className="jobs-subhead">Engineering call board</h3>
-            <div className="jobs-stack">
-              <select
-                className="form-control"
-                value={cbCat}
-                onChange={(e) => setCbCat(e.target.value)}
-              >
-                <option value="ENGINEERING">Engineering</option>
-                <option value="MATERIAL">Material / supply</option>
-                <option value="PLANNING">Planning / travelers</option>
-              </select>
-              <textarea
-                className="form-control"
-                rows={2}
-                placeholder="Describe technical hold / EC need"
-                value={cbDesc}
-                onChange={(e) => setCbDesc(e.target.value)}
-              />
-              <button type="button" className="btn-primary" onClick={submitCallBoard}>
-                Escalate to engineering board
-              </button>
-            </div>
-            <ul className="jobs-mini-list">
-              {(selected.callBoard ?? []).map((c) => (
-                <li key={c.id}>
-                  <strong>{c.category}</strong> — {c.description}{" "}
-                  <span className="jobs-muted">[{c.status}]</span>
-                  {c.engineerResponse ? (
-                    <div className="jobs-eng">
-                      Engineer: {c.engineerResponse}
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+                <h3 className="jobs-subhead">Engineering call board</h3>
+                <div className="jobs-stack">
+                  <select
+                    className="form-control"
+                    value={cbCat}
+                    onChange={(e) => setCbCat(e.target.value)}
+                  >
+                    <option value="ENGINEERING">Engineering</option>
+                    <option value="MATERIAL">Material / supply</option>
+                    <option value="PLANNING">Planning / travelers</option>
+                  </select>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    placeholder="Describe technical hold / EC need"
+                    value={cbDesc}
+                    onChange={(e) => setCbDesc(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={selected.isDemo}
+                    onClick={submitCallBoard}
+                  >
+                    Escalate to engineering board
+                  </button>
+                </div>
+                <ul className="jobs-mini-list">
+                  {(selected.callBoard ?? []).map((c) => (
+                    <li key={c.id}>
+                      <strong>{c.category}</strong> — {c.description}{" "}
+                      <span className="jobs-muted">[{c.status}]</span>
+                      {c.engineerResponse ? (
+                        <div className="jobs-eng">
+                          Engineer: {c.engineerResponse}
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
 
-            {selected.status === "COMPLETED" ? (
-              <div className="jobs-archive-banner">
-                <strong>Archived job</strong> — signed off by{" "}
-                {selected.signedOffBy?.name ?? "—"} at{" "}
-                {selected.completedAt
-                  ? new Date(selected.completedAt).toLocaleString()
-                  : "—"}
-              </div>
-            ) : null}
+                {selected.status === "COMPLETED" ? (
+                  <div className="jobs-archive-banner">
+                    <strong>Archived job</strong> — signed off by{" "}
+                    {selected.signedOffBy?.name ?? "—"} at{" "}
+                    {selected.completedAt
+                      ? new Date(selected.completedAt).toLocaleString()
+                      : "—"}
+                  </div>
+                ) : null}
+              </>
+            )}
 
             <button
               type="button"
