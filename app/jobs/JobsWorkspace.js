@@ -203,6 +203,25 @@ export default function JobsWorkspace() {
 
   const canPlanDocuments = Boolean(actor && canManageJobDocuments(actor));
   const canSeeLaborAttribution = Boolean(actor && canViewLaborAttribution(actor));
+  const isTechnician = actor?.role === "TECHNICIAN";
+  const mainTabs = isTechnician
+    ? [
+        ["queue", "Active queue"],
+        ["archive", "Job archive"],
+      ]
+    : [
+        ["queue", "Active queue"],
+        ["archive", "Job archive"],
+        ["foreman", "Foreman assistance"],
+        ["engineering", "Engineering board"],
+        ["yard", "Yard toolkit"],
+      ];
+
+  useEffect(() => {
+    if (isTechnician && tab !== "queue" && tab !== "archive") {
+      setTab("queue");
+    }
+  }, [isTechnician, tab]);
 
   async function saveJobRequirements() {
     if (!selected?.id || !canPlanDocuments) return;
@@ -434,13 +453,7 @@ export default function JobsWorkspace() {
       </section>
 
       <div className="jobs-main-tabs">
-        {[
-          ["queue", "Active queue"],
-          ["archive", "Job archive"],
-          ["foreman", "Foreman assistance"],
-          ["engineering", "Engineering board"],
-          ["yard", "Yard toolkit"],
-        ].map(([k, label]) => (
+        {mainTabs.map(([k, label]) => (
           <button
             key={k}
             type="button"
@@ -1047,51 +1060,57 @@ export default function JobsWorkspace() {
                   ))}
                 </ul>
 
-                <h3 className="jobs-subhead">Engineering call board</h3>
-                <div className="jobs-stack">
-                  <select
-                    className="form-control"
-                    value={cbCat}
-                    onChange={(e) => setCbCat(e.target.value)}
-                  >
-                    <option value="ENGINEERING">Engineering</option>
-                    <option value="MATERIAL">Material / supply</option>
-                    <option value="PLANNING">Planning / travelers</option>
-                  </select>
-                  <textarea
-                    className="form-control"
-                    rows={2}
-                    placeholder="Describe technical hold / EC need"
-                    value={cbDesc}
-                    onChange={(e) => setCbDesc(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    disabled={!laborOnSelected.canEscalateFromJob}
-                    title={
-                      !laborOnSelected.canEscalateFromJob
-                        ? "Escalations must be tied to a job in your shop."
-                        : undefined
-                    }
-                    onClick={submitCallBoard}
-                  >
-                    Escalate to engineering board
-                  </button>
-                </div>
-                <ul className="jobs-mini-list">
-                  {(selected.callBoard ?? []).map((c) => (
-                    <li key={c.id}>
-                      <strong>{c.category}</strong> — {c.description}{" "}
-                      <span className="jobs-muted">[{c.status}]</span>
-                      {c.engineerResponse ? (
-                        <div className="jobs-eng">
-                          Engineer: {c.engineerResponse}
-                        </div>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
+                {!isTechnician ? (
+                  <>
+                    <h3 className="jobs-subhead">Engineering call board</h3>
+                    <div className="jobs-stack">
+                      <select
+                        className="form-control"
+                        value={cbCat}
+                        onChange={(e) => setCbCat(e.target.value)}
+                      >
+                        <option value="ENGINEERING">Engineering</option>
+                        <option value="MATERIAL">Material</option>
+                        <option value="SUPPLY">Supply</option>
+                        <option value="PLANNING">Planning</option>
+                        <option value="TRAVELERS">Travelers</option>
+                      </select>
+                      <textarea
+                        className="form-control"
+                        rows={2}
+                        placeholder="Describe technical hold / EC need"
+                        value={cbDesc}
+                        onChange={(e) => setCbDesc(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        disabled={!laborOnSelected.canEscalateFromJob}
+                        title={
+                          !laborOnSelected.canEscalateFromJob
+                            ? "Escalations must be tied to a job in your shop."
+                            : undefined
+                        }
+                        onClick={submitCallBoard}
+                      >
+                        Escalate to engineering board
+                      </button>
+                    </div>
+                    <ul className="jobs-mini-list">
+                      {(selected.callBoard ?? []).map((c) => (
+                        <li key={c.id}>
+                          <strong>{c.category}</strong> — {c.description}{" "}
+                          <span className="jobs-muted">[{c.status}]</span>
+                          {c.engineerResponse ? (
+                            <div className="jobs-eng">
+                              Engineer: {c.engineerResponse}
+                            </div>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
 
                 {selected.status === "COMPLETED" ? (
                   <div className="jobs-archive-banner">
