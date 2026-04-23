@@ -17,6 +17,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:generate-neon-sql": "node scripts/generate-neon-demo-sql.mjs",
+    "db:sync": "node scripts/sync-db.mjs",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },

@@ -1,0 +1,26 @@
+Hullboard — fix “column does not exist” / empty Neon
+===================================================
+
+Your Neon database must match prisma/schema.prisma. One command does that + demo data:
+
+  1. In Neon: copy the connection URI (pooled is OK).
+  2. Create a file named `.env` in this project folder (same level as package.json).
+  3. Add one line (use YOUR string from Neon, not this example):
+
+       DATABASE_URL="postgresql://..."
+
+     Optional: copy lines from `.env.example` for DIRECT_URL and HULLBOARD_SESSION_SECRET.
+
+  4. In PowerShell or Terminal, from this folder:
+
+       pnpm install
+       pnpm db:sync
+
+     That runs: prisma generate → db push → db seed
+
+  5. Deployed on Vercel? Add the same DATABASE_URL (and HULLBOARD_SESSION_SECRET) in
+     Vercel → Settings → Environment Variables, then Redeploy.
+
+Do not commit `.env` — it is gitignored.
+
+Still stuck? Paste only the error text from `pnpm db:sync` (never your password or full URL).
