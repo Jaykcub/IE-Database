@@ -8,7 +8,7 @@ import {
   METRIC_DEPARTMENTS,
 } from "../lib/metric-catalog.js";
 
-dotenv.config();
+dotenv.config({ override: true });
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
