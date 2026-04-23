@@ -1,0 +1,22 @@
+Samples you can import into Postgres (Neon)
+===========================================
+
+Full dataset (users, all ships, jobs, metrics, assistance)
+---------------------------------------------------------
+  File:  prisma/neon-demo-data.sql
+
+  1. Run once on your PC:  pnpm prisma db push   (creates tables)
+  2. In Neon → SQL Editor → paste the entire contents of neon-demo-data.sql → Run
+
+  Regenerate that file after changing job templates:
+    pnpm db:generate-neon-sql
+
+
+Small add-on (one ship DDG 999 + two jobs only)
+-----------------------------------------------
+  File:  prisma/sample-minimal-import.sql
+
+  Use when you already have data and just want extra rows to play with.
+  Paste into Neon SQL Editor and run.
+
+  Preferred ongoing method: use the app Data entry page or pnpm db:seed
