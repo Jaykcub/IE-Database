@@ -16,7 +16,9 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log("Seeding Hullboard — users, hull-specific jobs, demo metrics…");
+  console.log(
+    "Seeding Hullboard — writing users, ships, jobs, and metrics into Postgres…",
+  );
 
   await prisma.callBoardEntry.deleteMany();
   await prisma.assistanceRequest.deleteMany();

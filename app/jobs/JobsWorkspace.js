@@ -8,10 +8,6 @@ import {
   ESCALATION_ROUTING,
   OPERATIONS_SUMMARY,
 } from "@/lib/yard-escalation";
-import {
-  buildDemoJobsAllCenters,
-  buildDemoJobsForWorkCenter,
-} from "@/lib/demo-work-orders";
 import HiiWorkOrderSheet from "./HiiWorkOrderSheet";
 
 function fmtHull(ship) {
@@ -49,7 +45,7 @@ export default function JobsWorkspace() {
   const [engBody, setEngBody] = useState({ response: "", resolution: "" });
   const [msg, setMsg] = useState("");
   const [detailTab, setDetailTab] = useState("document");
-  /** Set when GET /api/jobs fails (bad DATABASE_URL, schema drift, etc.) — skip demo rows */
+  /** Set when GET /api/jobs fails (bad DATABASE_URL, schema drift, etc.) */
   const [jobsFetchError, setJobsFetchError] = useState(null);
 
   const loadActor = useCallback(async () => {
@@ -158,39 +154,14 @@ export default function JobsWorkspace() {
     });
   }, [jobs, search]);
 
-  /**
-   * When the queue is empty (unseeded DB / offline), show illustrative WOs.
-   * Previously only a specific work-center chip triggered demos; “All centers” showed nothing.
-   */
-  const tableRows = useMemo(() => {
-    const showDemo =
-      !jobsFetchError &&
-      tab === "queue" &&
-      filtered.length === 0 &&
-      !search.trim() &&
-      !shipFilter &&
-      jobs.length === 0;
-    if (!showDemo) return filtered;
-    if (workCenterKey) return buildDemoJobsForWorkCenter(workCenterKey);
-    return buildDemoJobsAllCenters();
-  }, [
-    filtered,
-    workCenterKey,
-    tab,
-    search,
-    shipFilter,
-    jobs.length,
-    jobsFetchError,
-  ]);
-
   const shipOptions = useMemo(() => {
     const keys = new Set(jobs.map((j) => fmtHull(j.ship)));
     return Array.from(keys).sort();
   }, [jobs]);
 
   async function postJobAction(path) {
-    if (!selected || selected.isDemo) {
-      setMsg("Clock actions apply to database jobs — seed the DB or pick a non-demo row.");
+    if (!selected?.id) {
+      setMsg("Select a saved work order.");
       return;
     }
     setMsg("");
@@ -214,11 +185,7 @@ export default function JobsWorkspace() {
   }
 
   async function submitAssistance() {
-    if (!selected || !assistMsg.trim()) return;
-    if (selected.isDemo) {
-      setMsg("Demo work order — seed the database to request foreman assistance.");
-      return;
-    }
+    if (!selected?.id || !assistMsg.trim()) return;
     const r = await fetch(`/api/jobs/${selected.id}/assistance`, {
       method: "POST",
       credentials: "include",
@@ -237,11 +204,7 @@ export default function JobsWorkspace() {
   }
 
   async function submitCallBoard() {
-    if (!selected || !cbDesc.trim()) return;
-    if (selected.isDemo) {
-      setMsg("Demo work order — seed the database to post to engineering.");
-      return;
-    }
+    if (!selected?.id || !cbDesc.trim()) return;
     const r = await fetch(`/api/jobs/${selected.id}/call-board`, {
       method: "POST",
       credentials: "include",
@@ -592,27 +555,6 @@ export default function JobsWorkspace() {
               <div className="jobs-loading">Loading work orders…</div>
             ) : (
               <>
-                {tableRows[0]?.isDemo ? (
-                  <p className="jobs-demo-banner" role="note">
-                    {workCenterKey ? (
-                      <>
-                        Showing illustrative work orders for{" "}
-                        <strong>{workCenterKey}</strong>
-                      </>
-                    ) : (
-                      <>
-                        Showing one illustrative row per work center (all centers)
-                      </>
-                    )}
-                    {" — "}
-                    your Neon database returned no open queue rows yet (or nothing matched
-                    filters). Run{" "}
-                    <code className="jobs-code">pnpm db:push</code> and{" "}
-                    <code className="jobs-code">pnpm db:seed</code> with{" "}
-                    <code className="jobs-code">DATABASE_URL</code> set to Neon. Routing
-                    sheet layout is training-only (not an official HII form).
-                  </p>
-                ) : null}
               <table className="jobs-table jobs-table--dense">
                 <thead>
                   <tr>
@@ -627,7 +569,7 @@ export default function JobsWorkspace() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tableRows.map((job) => (
+                  {filtered.map((job) => (
                     <tr key={job.id ?? job.woNumber}>
                       <td className="jobs-mono">{job.woNumber}</td>
                       <td>{fmtHull(job.ship)}</td>
@@ -660,7 +602,7 @@ export default function JobsWorkspace() {
                       </td>
                     </tr>
                   ))}
-                  {tableRows.length === 0 && !loading ? (
+                  {filtered.length === 0 && !loading ? (
                     <tr>
                       <td colSpan={8} className="jobs-empty">
                         {jobsFetchError ? (
@@ -670,13 +612,12 @@ export default function JobsWorkspace() {
                           </>
                         ) : (
                           <>
-                            No rows in this view. Active queue excludes completed jobs. If
-                            Neon has no data yet: set{" "}
-                            <code className="jobs-code">DATABASE_URL</code> to your Neon
-                            connection string, then{" "}
-                            <code className="jobs-code">pnpm db:push</code> and{" "}
-                            <code className="jobs-code">pnpm db:seed</code>. Otherwise
-                            clear the hull filter or search.
+                            No rows from the database for this view (queue hides completed
+                            jobs). Run{" "}
+                            <code className="jobs-code">pnpm db:sync</code> or{" "}
+                            <code className="jobs-code">pnpm db:push</code> then{" "}
+                            <code className="jobs-code">pnpm db:seed</code> so jobs are
+                            stored in Postgres, or clear filters.
                           </>
                         )}
                       </td>
@@ -708,11 +649,6 @@ export default function JobsWorkspace() {
                   {fmtHull(selected.ship)}
                   {selected.ship?.displayLabel ? ` · ${selected.ship.displayLabel}` : ""}
                 </p>
-                {selected.isDemo ? (
-                  <p className="jobs-demo-inline">
-                    Demo row — use Hullboard actions only after seeding live jobs.
-                  </p>
-                ) : null}
               </div>
               <nav className="jobs-detail-tabs" aria-label="Work order sections">
                 <button
@@ -780,9 +716,7 @@ export default function JobsWorkspace() {
                   <button
                     type="button"
                     className="btn-primary"
-                    disabled={
-                      selected.isDemo || !actor || selected.status === "COMPLETED"
-                    }
+                    disabled={!actor || selected.status === "COMPLETED"}
                     onClick={() => postJobAction("start")}
                   >
                     {activeSessionForActor ? "Clocked in ✓" : "Work started (clock in)"}
@@ -790,7 +724,7 @@ export default function JobsWorkspace() {
                   <button
                     type="button"
                     className="jobs-detail-btn"
-                    disabled={selected.isDemo || !activeSessionForActor}
+                    disabled={!activeSessionForActor}
                     onClick={() => postJobAction("stop")}
                   >
                     Pause / clock out
@@ -798,9 +732,7 @@ export default function JobsWorkspace() {
                   <button
                     type="button"
                     className="jobs-detail-btn"
-                    disabled={
-                      selected.isDemo || !actor || selected.status === "COMPLETED"
-                    }
+                    disabled={!actor || selected.status === "COMPLETED"}
                     onClick={() => postJobAction("complete")}
                   >
                     Complete &amp; sign off
@@ -850,7 +782,6 @@ export default function JobsWorkspace() {
                   <button
                     type="button"
                     className="btn-primary"
-                    disabled={selected.isDemo}
                     onClick={submitAssistance}
                   >
                     Request foreman assistance
@@ -891,7 +822,6 @@ export default function JobsWorkspace() {
                   <button
                     type="button"
                     className="btn-primary"
-                    disabled={selected.isDemo}
                     onClick={submitCallBoard}
                   >
                     Escalate to engineering board

@@ -1,5 +1,5 @@
-Hullboard — fix “column does not exist” / empty Neon
-===================================================
+Hullboard — sync schema and load data into Postgres (Neon)
+===========================================================
 
 Your Neon database must match prisma/schema.prisma. One command does that + demo data:
 

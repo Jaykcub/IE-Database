@@ -1,21 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { METRIC_DEPARTMENTS } from "@/lib/metric-catalog";
 import {
-  buildDemoMetricsForShips,
-  DEMO_FALLBACK_SHIPS,
-  DEMO_SHIP_IDS,
-} from "@/lib/demo-metrics";
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { METRIC_DEPARTMENTS } from "@/lib/metric-catalog";
 
 export default function MetricsPage() {
   const [ships, setShips] = useState([]);
-  const [ship1, setShip1] = useState('');
-  const [ship2, setShip2] = useState('');
+  const [ship1, setShip1] = useState("");
+  const [ship2, setShip2] = useState("");
   const [metrics, setMetrics] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [department, setDepartment] = useState('');
+  const [department, setDepartment] = useState("");
 
   useEffect(() => {
     fetch("/api/ships", { credentials: "include" })
@@ -34,10 +38,10 @@ export default function MetricsPage() {
       }
       setLoading(true);
       const params = new URLSearchParams();
-      if (ship1) params.append('shipId', ship1);
-      if (ship2) params.append('shipId', ship2);
-      if (department) params.append('department', department);
-      
+      if (ship1) params.append("shipId", ship1);
+      if (ship2) params.append("shipId", ship2);
+      if (department) params.append("department", department);
+
       try {
         const res = await fetch(`/api/metrics?${params.toString()}`, {
           credentials: "include",
@@ -53,34 +57,9 @@ export default function MetricsPage() {
     loadMetrics();
   }, [ship1, ship2, department]);
 
-  const shipsForCharts = useMemo(
-    () => (ships.length > 0 ? ships : DEMO_FALLBACK_SHIPS),
-    [ships],
-  );
-
-  /** Prefer API; synthesize only for demo hull ids or when no ships load from DB */
-  const displayMetrics = useMemo(() => {
-    if (!ship1 && !ship2) return [];
-    if (metrics.length > 0) return metrics;
-    const selectedIds = [ship1, ship2]
-      .filter(Boolean)
-      .map((x) => parseInt(x, 10));
-    const onlyDemoSelection = selectedIds.every((id) => DEMO_SHIP_IDS.has(id));
-    const noBackendShipList = ships.length === 0;
-    if (onlyDemoSelection || noBackendShipList) {
-      return buildDemoMetricsForShips(
-        shipsForCharts,
-        ship1,
-        ship2,
-        department,
-      );
-    }
-    return [];
-  }, [metrics, shipsForCharts, ships.length, ship1, ship2, department]);
-
   const chartFromMetrics = useMemo(() => {
     const tally = {};
-    displayMetrics.forEach((m) => {
+    metrics.forEach((m) => {
       const shipKey = `Ship ${m.ship.shipClass}-${m.ship.hullNumber}`;
       if (!tally[m.category]) tally[m.category] = {};
       const cur = tally[m.category][shipKey];
@@ -102,51 +81,64 @@ export default function MetricsPage() {
     });
 
     const keysSet = new Set(
-      displayMetrics.map(
-        (m) => `Ship ${m.ship.shipClass}-${m.ship.hullNumber}`,
-      ),
+      metrics.map((m) => `Ship ${m.ship.shipClass}-${m.ship.hullNumber}`),
     );
 
     return { rows, keys: Array.from(keysSet) };
-  }, [displayMetrics, department]);
+  }, [metrics, department]);
 
   const finalData = chartFromMetrics.rows;
   const keys = chartFromMetrics.keys;
-
-  const usingDemoMetrics =
-    metrics.length === 0 &&
-    displayMetrics.length > 0 &&
-    (ship1 || ship2) &&
-    (ships.length === 0 ||
-      [ship1, ship2]
-        .filter(Boolean)
-        .every((x) => DEMO_SHIP_IDS.has(parseInt(x, 10))));
-  const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
+  const colors = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b"];
 
   const formatTooltip = (value, name, props) => {
-    const isDollar = props.payload.category.includes('Cost') || props.payload.category.includes('Spend');
+    const isDollar =
+      props.payload.category.includes("Cost") ||
+      props.payload.category.includes("Spend");
     const roundedValue = Math.round(value);
-    return [isDollar ? `$${roundedValue.toLocaleString()}` : roundedValue.toLocaleString(), name];
+    return [
+      isDollar
+        ? `$${roundedValue.toLocaleString()}`
+        : roundedValue.toLocaleString(),
+      name,
+    ];
   };
 
   const formatYAxis = (val) => {
-    return Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(val);
+    return Intl.NumberFormat("en-US", {
+      notation: "compact",
+      compactDisplay: "short",
+    }).format(val);
   };
 
   return (
     <div className="page-container animate-fade-in">
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Variance & Analytics</h1>
-        <p style={{ opacity: 0.8 }}>Compare metrics and visualize variances across hulls (optionally by department).</p>
+      <div style={{ marginBottom: "2rem" }}>
+        <h1 style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>
+          Variance &amp; Analytics
+        </h1>
+        <p style={{ opacity: 0.8 }}>
+          Compare metrics from your database across hulls (optionally by department).
+        </p>
       </div>
 
-      <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+      <div className="glass-panel" style={{ padding: "2rem", marginBottom: "2rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "1.5rem",
+          }}
+        >
           <div className="form-group">
             <label className="form-label">Primary Ship</label>
-            <select className="form-control" value={ship1} onChange={e => setShip1(e.target.value)}>
+            <select
+              className="form-control"
+              value={ship1}
+              onChange={(e) => setShip1(e.target.value)}
+            >
               <option value="">Select a ship...</option>
-              {shipsForCharts.map((s) => (
+              {ships.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.shipClass} {s.hullNumber}
                   {s.displayLabel ? ` · ${s.displayLabel}` : ""}
@@ -156,9 +148,13 @@ export default function MetricsPage() {
           </div>
           <div className="form-group">
             <label className="form-label">Comparison Ship</label>
-            <select className="form-control" value={ship2} onChange={e => setShip2(e.target.value)}>
+            <select
+              className="form-control"
+              value={ship2}
+              onChange={(e) => setShip2(e.target.value)}
+            >
               <option value="">Select a comparison ship...</option>
-              {shipsForCharts.map((s) => (
+              {ships.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.shipClass} {s.hullNumber}
                   {s.displayLabel ? ` · ${s.displayLabel}` : ""}
@@ -168,10 +164,18 @@ export default function MetricsPage() {
           </div>
           <div className="form-group">
             <label className="form-label">Filter Department</label>
-            <select className="form-control" value={department} onChange={e => setDepartment(e.target.value)}>
-              <option value="">All departments (chart = average across shops)</option>
+            <select
+              className="form-control"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+            >
+              <option value="">
+                All departments (chart = average across shops)
+              </option>
               {METRIC_DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>{d}</option>
+                <option key={d} value={d}>
+                  {d}
+                </option>
               ))}
             </select>
           </div>
@@ -179,39 +183,87 @@ export default function MetricsPage() {
       </div>
 
       {ships.length === 0 ? (
-        <p style={{ opacity: 0.75, marginBottom: "1rem", fontSize: "0.95rem" }}>
-          No ships loaded from the database — pick a demo hull below to preview chart
-          data.
+        <p
+          style={{
+            opacity: 0.75,
+            marginBottom: "1rem",
+            fontSize: "0.95rem",
+          }}
+        >
+          No ships in the database yet — run{" "}
+          <code className="jobs-code">pnpm db:sync</code> (or seed) so hulls and metrics
+          are stored in Postgres.
         </p>
       ) : null}
 
-      {usingDemoMetrics ? (
-        <p style={{ opacity: 0.85, marginBottom: "1rem", fontSize: "0.92rem", padding: "0.65rem 1rem", borderRadius: "12px", border: "1px solid rgba(56,189,248,0.25)", background: "rgba(56,189,248,0.06)" }}>
-          Showing <strong>synthetic demo metrics</strong> — connect Postgres and seed for
-          live figures. Export pulls from the database once available.
-        </p>
-      ) : null}
-
-      <div className="glass-panel" style={{ padding: '2rem', height: '500px' }}>
+      <div className="glass-panel" style={{ padding: "2rem", height: "500px" }}>
         {loading ? (
-          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}><p>Loading metrics...</p></div>
+          <div
+            style={{
+              display: "flex",
+              height: "100%",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <p>Loading metrics…</p>
+          </div>
         ) : finalData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={finalData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart
+              data={finalData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
               <XAxis dataKey="category" stroke="rgba(255,255,255,0.5)" />
-              <YAxis stroke="rgba(255,255,255,0.5)" tickFormatter={formatYAxis} />
-              <Tooltip 
+              <YAxis
+                stroke="rgba(255,255,255,0.5)"
+                tickFormatter={formatYAxis}
+              />
+              <Tooltip
                 formatter={formatTooltip}
-                contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
-                itemStyle={{ color: '#fff' }}
+                contentStyle={{
+                  backgroundColor: "rgba(15,23,42,0.9)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "8px",
+                  color: "#fff",
+                }}
+                itemStyle={{ color: "#fff" }}
               />
               <Legend />
-              {keys.map((key, index) => <Bar key={key} dataKey={key} fill={colors[index % colors.length]} radius={[4, 4, 0, 0]} />)}
+              {keys.map((key, index) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  fill={colors[index % colors.length]}
+                  radius={[4, 4, 0, 0]}
+                />
+              ))}
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 1rem' }}><p style={{ opacity: 0.55, maxWidth: '28rem', lineHeight: 1.6 }}>{ship1 || ship2 ? 'No metrics returned for this hull and department — try another filter or confirm the database is seeded.' : 'Select a primary ship to visualize metrics.'}</p></div>
+          <div
+            style={{
+              display: "flex",
+              height: "100%",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              padding: "0 1rem",
+            }}
+          >
+            <p
+              style={{
+                opacity: 0.55,
+                maxWidth: "28rem",
+                lineHeight: 1.6,
+              }}
+            >
+              {ship1 || ship2
+                ? "No metric rows returned for this selection — confirm ships are seeded or adjust department filter."
+                : "Select a primary ship to load metrics from the database."}
+            </p>
+          </div>
         )}
       </div>
     </div>
