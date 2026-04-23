@@ -7,7 +7,10 @@ import {
   ESCALATION_ROUTING,
   OPERATIONS_SUMMARY,
 } from "@/lib/yard-escalation";
-import { buildDemoJobsForWorkCenter } from "@/lib/demo-work-orders";
+import {
+  buildDemoJobsAllCenters,
+  buildDemoJobsForWorkCenter,
+} from "@/lib/demo-work-orders";
 import HiiWorkOrderSheet from "./HiiWorkOrderSheet";
 
 function fmtHull(ship) {
@@ -45,6 +48,8 @@ export default function JobsWorkspace() {
   const [engBody, setEngBody] = useState({ response: "", resolution: "" });
   const [msg, setMsg] = useState("");
   const [detailTab, setDetailTab] = useState("document");
+  /** Set when GET /api/jobs fails (bad DATABASE_URL, schema drift, etc.) — skip demo rows */
+  const [jobsFetchError, setJobsFetchError] = useState(null);
 
   const loadActor = useCallback(async () => {
     const r = await fetch("/api/session", { credentials: "include" });
@@ -60,6 +65,7 @@ export default function JobsWorkspace() {
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
+    setJobsFetchError(null);
     try {
       const wc = INGALLS_PASCAGOULA_WORK_CENTERS.find((w) => w.code === workCenterKey);
       const qs = new URLSearchParams();
@@ -71,10 +77,27 @@ export default function JobsWorkspace() {
         if (cls && hull) qs.set("ship", `${cls} ${hull}`);
       }
       const r = await fetch(`/api/jobs?${qs}`, { credentials: "include" });
-      const d = await r.json();
-      setJobs(Array.isArray(d) ? d : []);
-    } catch {
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setJobs([]);
+        setJobsFetchError(
+          typeof d?.error === "string" ? d.error : `Could not load jobs (HTTP ${r.status}).`,
+        );
+        return;
+      }
+      if (!Array.isArray(d)) {
+        setJobs([]);
+        setJobsFetchError(
+          typeof d?.error === "string" ? d.error : "Unexpected response from jobs API.",
+        );
+        return;
+      }
+      setJobs(d);
+    } catch (e) {
       setJobs([]);
+      setJobsFetchError(
+        e instanceof Error ? e.message : "Network error loading jobs.",
+      );
     } finally {
       setLoading(false);
     }
@@ -134,17 +157,30 @@ export default function JobsWorkspace() {
     });
   }, [jobs, search]);
 
-  /** When a work center is selected and the API returns no rows, show generic demo WOs. */
+  /**
+   * When the queue is empty (unseeded DB / offline), show illustrative WOs.
+   * Previously only a specific work-center chip triggered demos; “All centers” showed nothing.
+   */
   const tableRows = useMemo(() => {
     const showDemo =
-      workCenterKey &&
+      !jobsFetchError &&
       tab === "queue" &&
       filtered.length === 0 &&
       !search.trim() &&
+      !shipFilter &&
       jobs.length === 0;
-    if (showDemo) return buildDemoJobsForWorkCenter(workCenterKey);
-    return filtered;
-  }, [filtered, workCenterKey, tab, search, jobs.length]);
+    if (!showDemo) return filtered;
+    if (workCenterKey) return buildDemoJobsForWorkCenter(workCenterKey);
+    return buildDemoJobsAllCenters();
+  }, [
+    filtered,
+    workCenterKey,
+    tab,
+    search,
+    shipFilter,
+    jobs.length,
+    jobsFetchError,
+  ]);
 
   const shipOptions = useMemo(() => {
     const keys = new Set(jobs.map((j) => fmtHull(j.ship)));
@@ -333,6 +369,18 @@ export default function JobsWorkspace() {
       {msg ? (
         <div className="jobs-banner" role="status">
           {msg}
+        </div>
+      ) : null}
+
+      {jobsFetchError ? (
+        <div className="jobs-banner jobs-banner--error" role="alert">
+          <strong>Jobs API error:</strong> {jobsFetchError}{" "}
+          <span className="jobs-muted">
+            Confirm <code className="jobs-code">DATABASE_URL</code> points at your Neon
+            branch (same value in Vercel if deployed), run{" "}
+            <code className="jobs-code">pnpm db:push</code> then{" "}
+            <code className="jobs-code">pnpm db:seed</code>.
+          </span>
         </div>
       ) : null}
 
@@ -545,10 +593,23 @@ export default function JobsWorkspace() {
               <>
                 {tableRows[0]?.isDemo ? (
                   <p className="jobs-demo-banner" role="note">
-                    Showing illustrative generic work orders for{" "}
-                    <strong>{workCenterKey}</strong> — seed the database for live hull
-                    data. Document view matches a typical yard routing-sheet layout (not an
-                    official HII controlled form).
+                    {workCenterKey ? (
+                      <>
+                        Showing illustrative work orders for{" "}
+                        <strong>{workCenterKey}</strong>
+                      </>
+                    ) : (
+                      <>
+                        Showing one illustrative row per work center (all centers)
+                      </>
+                    )}
+                    {" — "}
+                    your Neon database returned no open queue rows yet (or nothing matched
+                    filters). Run{" "}
+                    <code className="jobs-code">pnpm db:push</code> and{" "}
+                    <code className="jobs-code">pnpm db:seed</code> with{" "}
+                    <code className="jobs-code">DATABASE_URL</code> set to Neon. Routing
+                    sheet layout is training-only (not an official HII form).
                   </p>
                 ) : null}
               <table className="jobs-table jobs-table--dense">
@@ -598,14 +659,25 @@ export default function JobsWorkspace() {
                       </td>
                     </tr>
                   ))}
-                  {tableRows.length === 0 ? (
+                  {tableRows.length === 0 && !loading ? (
                     <tr>
                       <td colSpan={8} className="jobs-empty">
-                        No rows in this view. If the database is empty: set{" "}
-                        <code className="jobs-code">DATABASE_URL</code>, run{" "}
-                        <code className="jobs-code">pnpm db:push</code> then{" "}
-                        <code className="jobs-code">pnpm db:seed</code>. Otherwise clear
-                        hull filters or choose a different work center.
+                        {jobsFetchError ? (
+                          <>
+                            Fix the jobs API error above — often a wrong or missing{" "}
+                            <code className="jobs-code">DATABASE_URL</code> for Neon.
+                          </>
+                        ) : (
+                          <>
+                            No rows in this view. Active queue excludes completed jobs. If
+                            Neon has no data yet: set{" "}
+                            <code className="jobs-code">DATABASE_URL</code> to your Neon
+                            connection string, then{" "}
+                            <code className="jobs-code">pnpm db:push</code> and{" "}
+                            <code className="jobs-code">pnpm db:seed</code>. Otherwise
+                            clear the hull filter or search.
+                          </>
+                        )}
                       </td>
                     </tr>
                   ) : null}

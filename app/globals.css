@@ -856,6 +856,11 @@ a {
   font-size: 0.9rem;
 }
 
+.jobs-banner--error {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.08);
+}
+
 .jobs-section-title {
   font-size: 1.1rem;
   margin-bottom: 0.75rem;
