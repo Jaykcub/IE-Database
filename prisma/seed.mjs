@@ -67,6 +67,12 @@ async function main() {
         title: "Industrial Engineer",
       },
       {
+        name: "Jamie Ortiz",
+        role: "PLANNER",
+        departmentScope: null,
+        title: "Production Planner (PP&S)",
+      },
+      {
         name: "Admin Demo",
         role: "ADMIN",
         departmentScope: null,

@@ -5,9 +5,13 @@ import {
   INGALLS_PASCAGOULA_WORK_CENTERS,
   workCenterLabel,
 } from "@/lib/ingalls-work-centers";
+import { canManageJobDocuments } from "@/lib/job-access";
+import { readFileAsDataUrl } from "@/lib/browser-file-read";
 
 export default function DataEntry() {
   const [ships, setShips] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [actor, setActor] = useState(null);
   
   // Ship State
   const [shipClass, setShipClass] = useState('DDG');
@@ -33,16 +37,28 @@ export default function DataEntry() {
   const [jobWp, setJobWp] = useState('');
   const [jobDrawing, setJobDrawing] = useState('');
   const [jobZone, setJobZone] = useState('');
-  const [jobSchedule, setJobSchedule] = useState('');
-  
+  const [jobSchedule, setJobSchedule] = useState("");
+  const [jobRequirements, setJobRequirements] = useState("");
+  const [jobFiles, setJobFiles] = useState([]);
+
   useEffect(() => {
     fetch("/api/ships", { credentials: "include" })
       .then((res) => res.json())
-      .then(data => {
+      .then((data) => {
         if (Array.isArray(data)) setShips(data);
-        else console.error('Failed to load ships:', data);
+        else console.error("Failed to load ships:", data);
       })
       .catch(console.error);
+    fetch("/api/users", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setUsers(data);
+      })
+      .catch(console.error);
+    fetch("/api/session", { credentials: "include" })
+      .then((res) => res.json())
+      .then((d) => setActor(d.user ?? null))
+      .catch(() => setActor(null));
   }, []);
 
   const handleAddShip = async (e) => {
@@ -76,10 +92,26 @@ export default function DataEntry() {
 
   const handleAddJob = async (e) => {
     e.preventDefault();
+    if (!actor || !canManageJobDocuments(actor)) {
+      alert(
+        "Select an admin, IE, engineer, or planner yard identity (Hullboard header session) before creating a job package.",
+      );
+      return;
+    }
     const wc = INGALLS_PASCAGOULA_WORK_CENTERS.find(
       (w) => workCenterLabel(w) === jobDept,
     );
-    await fetch("/api/jobs", {
+    const attachments = [];
+    for (const f of jobFiles) {
+      try {
+        const contentBase64 = await readFileAsDataUrl(f);
+        attachments.push({ fileName: f.name, contentBase64 });
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Could not read a selected file.");
+        return;
+      }
+    }
+    const res = await fetch("/api/jobs", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -90,25 +122,34 @@ export default function DataEntry() {
         woNumber: `WO-MAN-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         jobDescription: jobDesc,
         allocatedHours: jobAlloc,
-        actualHours: jobActual,
-        materialCost: jobCost,
-        notes: jobNotes,
+        actualHours: jobActual || undefined,
+        materialCost: jobCost || undefined,
+        notes: jobNotes || undefined,
         workPackageCode: jobWp || undefined,
         drawingRef: jobDrawing || undefined,
         zone: jobZone || undefined,
         scheduleCode: jobSchedule || undefined,
+        requirementsText: jobRequirements.trim() || undefined,
+        attachments,
       }),
     });
-    setJobDesc('');
-    setJobAlloc('');
-    setJobActual('');
-    setJobCost('');
-    setJobNotes('');
-    setJobWp('');
-    setJobDrawing('');
-    setJobZone('');
-    setJobSchedule('');
-    alert('Job Ticket logged successfully!');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(typeof data?.error === "string" ? data.error : "Job create failed.");
+      return;
+    }
+    setJobDesc("");
+    setJobAlloc("");
+    setJobActual("");
+    setJobCost("");
+    setJobNotes("");
+    setJobWp("");
+    setJobDrawing("");
+    setJobZone("");
+    setJobSchedule("");
+    setJobRequirements("");
+    setJobFiles([]);
+    alert("Job ticket logged successfully.");
   };
 
   return (
@@ -116,8 +157,60 @@ export default function DataEntry() {
       <h1 style={{ fontSize: '2.5rem', marginBottom: '2rem' }}>Data Management</h1>
       
       <div className="grid-2">
-        <div className="glass-panel" style={{ padding: '2rem' }}>
-          <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>Create Job Ticket</h2>
+        <div className="glass-panel" style={{ padding: "2rem" }}>
+          <h2 style={{ marginBottom: "1.5rem", fontSize: "1.5rem" }}>Create Job Ticket</h2>
+          <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "1rem" }}>
+            Requirements and file attachments require an <strong>admin</strong>,{" "}
+            <strong>IE</strong>, <strong>engineer</strong>, or <strong>planner</strong> yard
+            identity (same browser session as the Jobs console). Pick one below, or set your
+            identity on the{" "}
+            <a href="/jobs" style={{ color: "#2563eb" }}>
+              Jobs
+            </a>{" "}
+            page first.
+          </p>
+          <div className="form-group" style={{ marginBottom: "1rem" }}>
+            <label className="form-label">Yard identity (same session as Jobs page)</label>
+            <select
+              className="form-control"
+              value={actor?.id ?? ""}
+              onChange={async (e) => {
+                const v = e.target.value;
+                if (!v) {
+                  await fetch("/api/session", { method: "DELETE", credentials: "include" });
+                  setActor(null);
+                  return;
+                }
+                await fetch("/api/session", {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ userId: parseInt(v, 10) }),
+                });
+                const r = await fetch("/api/session", { credentials: "include" });
+                const d = await r.json();
+                setActor(d.user ?? null);
+              }}
+            >
+              <option value="">Not selected — pick a planner-capable user</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} — {u.role}
+                </option>
+              ))}
+            </select>
+            {actor ? (
+              <p style={{ fontSize: "0.82rem", marginTop: "0.35rem" }}>
+                Acting as <strong>{actor.name}</strong> ({actor.role})
+                {!canManageJobDocuments(actor) ? (
+                  <span style={{ color: "#b91c1c" }}>
+                    {" "}
+                    — cannot author job packages; switch to admin / IE / engineer / planner.
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
           <form onSubmit={handleAddJob}>
             <div className="form-group">
               <label className="form-label">Target Ship</label>
@@ -175,9 +268,55 @@ export default function DataEntry() {
             </div>
             <div className="form-group">
               <label className="form-label">Notes (Optional)</label>
-              <textarea className="form-control" value={jobNotes} onChange={e => setJobNotes(e.target.value)} placeholder="Attach any department notes or observations here..." rows="3" style={{ resize: 'vertical' }}></textarea>
+              <textarea
+                className="form-control"
+                value={jobNotes}
+                onChange={(e) => setJobNotes(e.target.value)}
+                placeholder="Attach any department notes or observations here..."
+                rows={3}
+                style={{ resize: "vertical" }}
+              />
             </div>
-            <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={!jobShipId || !jobDesc || !jobAlloc}>
+            <div className="form-group">
+              <label className="form-label">Job requirements &amp; traveler (optional)</label>
+              <textarea
+                className="form-control"
+                value={jobRequirements}
+                onChange={(e) => setJobRequirements(e.target.value)}
+                placeholder="QC gates, torque spec references, PPE, prerequisite WOs…"
+                rows={5}
+                style={{ resize: "vertical" }}
+                disabled={!actor || !canManageJobDocuments(actor)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Attachments (PDF, images, text — max ~512 KB each)</label>
+              <input
+                type="file"
+                className="form-control"
+                multiple
+                accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.doc,.docx,application/pdf,image/*"
+                disabled={!actor || !canManageJobDocuments(actor)}
+                onChange={(e) => setJobFiles(Array.from(e.target.files ?? []))}
+              />
+              {jobFiles.length ? (
+                <p style={{ fontSize: "0.82rem", marginTop: "0.35rem" }}>
+                  {jobFiles.length} file(s) selected
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ width: "100%", marginTop: "1rem" }}
+              disabled={
+                !jobShipId ||
+                !jobDesc ||
+                !jobAlloc ||
+                !actor ||
+                !canManageJobDocuments(actor)
+              }
+            >
               Submit Job Ticket
             </button>
           </form>

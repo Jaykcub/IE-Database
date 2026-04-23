@@ -9,7 +9,7 @@ datasource db {
 model User {
   id                  Int                   @id @default(autoincrement())
   name                String
-  role                String // TECHNICIAN | FOREMAN | ENGINEER | IE | ADMIN
+  role                String // TECHNICIAN | FOREMAN | ENGINEER | IE | ADMIN | PLANNER
   departmentScope     String?
   title               String?
   workSessions        WorkSession[]
@@ -18,6 +18,7 @@ model User {
   callBoardOpened     CallBoardEntry[]      @relation("CallOpenedBy")
   callBoardEngineer   CallBoardEntry[]      @relation("CallEngineer")
   jobsSignedOff       Job[]                 @relation("SignedOffJobs")
+  jobDocumentsUploaded JobDocument[]       @relation("JobDocumentUploader")
 }
 
 model Ship {
@@ -50,6 +51,8 @@ model Job {
   actualHours      Float?
   materialCost     Float?
   notes            String?
+  /** Planner / engineering-authored traveler text, QC gates, links, etc. */
+  requirementsText String?               @db.Text
   status           String                @default("OPEN")
   dateCreated      DateTime              @default(now())
   completedAt      DateTime?
@@ -59,10 +62,26 @@ model Job {
   workSessions     WorkSession[]
   assistance       AssistanceRequest[]
   callBoard        CallBoardEntry[]
+  documents        JobDocument[]
 
   @@index([shipId])
   @@index([status])
   @@index([department])
+}
+
+/** Uploaded traveler pages, marked PDFs, photos — demo storage as base64 in Postgres (size-capped in API). */
+model JobDocument {
+  id           Int      @id @default(autoincrement())
+  jobId        Int
+  fileName     String
+  mimeType     String
+  dataBase64   String   @db.Text
+  uploadedAt   DateTime @default(now())
+  uploadedById Int?
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  uploadedBy   User?    @relation("JobDocumentUploader", fields: [uploadedById], references: [id])
+
+  @@index([jobId])
 }
 
 model WorkSession {

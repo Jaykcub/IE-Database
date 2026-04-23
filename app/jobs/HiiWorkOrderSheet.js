@@ -82,6 +82,36 @@ export default function HiiWorkOrderSheet({ job }) {
             <strong>Planner notes:</strong> {doc.notes}
           </p>
         ) : null}
+        {job.requirementsText ? (
+          <div className="wo-sheet-requirements">
+            <h5 className="wo-sheet-subh">Job requirements &amp; traveler (authored)</h5>
+            <pre className="wo-sheet-pre">{job.requirementsText}</pre>
+          </div>
+        ) : null}
+        {job.documents?.length ? (
+          <div className="wo-sheet-attachments">
+            <h5 className="wo-sheet-subh">Attached files</h5>
+            <ul className="wo-sheet-ul">
+              {job.documents.map((d) => (
+                <li key={d.id}>
+                  <a
+                    className="wo-sheet-link"
+                    href={`/api/jobs/${job.id}/documents/${d.id}/file`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {d.fileName}
+                  </a>
+                  <span className="wo-sheet-muted">
+                    {" "}
+                    ({d.mimeType})
+                    {d.uploadedBy?.name ? ` · ${d.uploadedBy.name}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
 
       <section className="wo-sheet-section wo-sheet-split">

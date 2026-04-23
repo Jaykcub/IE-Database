@@ -13,7 +13,9 @@ import {
   canRunOwnLaborOnJob,
   canClearShopLaborOnJob,
   canSignOffCompleteJob,
+  canManageJobDocuments,
 } from "@/lib/job-access";
+import { readFileAsDataUrl } from "@/lib/browser-file-read";
 
 function fmtHull(ship) {
   if (!ship) return "—";
@@ -50,6 +52,7 @@ export default function JobsWorkspace() {
   const [engBody, setEngBody] = useState({ response: "", resolution: "" });
   const [msg, setMsg] = useState("");
   const [detailTab, setDetailTab] = useState("document");
+  const [packageDraft, setPackageDraft] = useState("");
   /** Set when GET /api/jobs fails (bad DATABASE_URL, schema drift, etc.) */
   const [jobsFetchError, setJobsFetchError] = useState(null);
 
@@ -139,6 +142,14 @@ export default function JobsWorkspace() {
     if (tab === "engineering") loadCallBoard();
   }, [tab, loadInbox, loadCallBoard]);
 
+  useEffect(() => {
+    if (selected?.id) {
+      setPackageDraft(selected.requirementsText ?? "");
+    } else {
+      setPackageDraft("");
+    }
+  }, [selected?.id, selected?.requirementsText]);
+
   async function setIdentity(userId) {
     await fetch("/api/session", {
       method: "POST",
@@ -188,6 +199,80 @@ export default function JobsWorkspace() {
   const hasOpenLaborOnSelected = Boolean(
     selected?.workSessions?.some((s) => !s.endedAt),
   );
+
+  const canPlanDocuments = Boolean(actor && canManageJobDocuments(actor));
+
+  async function saveJobRequirements() {
+    if (!selected?.id || !canPlanDocuments) return;
+    setMsg("");
+    const r = await fetch(`/api/jobs/${selected.id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requirementsText: packageDraft }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      setMsg(d.error || "Could not save requirements");
+      return;
+    }
+    setMsg("Requirements saved.");
+    await loadJobs();
+    if (d.job?.id) setSelected(d.job);
+  }
+
+  async function uploadJobDocuments(ev) {
+    const input = ev.target;
+    const files = input.files;
+    if (!files?.length || !selected?.id || !canPlanDocuments) return;
+    setMsg("");
+    try {
+      for (const file of Array.from(files)) {
+        const contentBase64 = await readFileAsDataUrl(file);
+        const r = await fetch(`/api/jobs/${selected.id}/documents`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            contentBase64,
+          }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          setMsg(d.error || `Upload failed for ${file.name}`);
+          input.value = "";
+          return;
+        }
+      }
+      setMsg("Files attached to this work order.");
+      await loadJobs();
+      const nr = await fetch(`/api/jobs/${selected.id}`, { credentials: "include" });
+      const nj = await nr.json();
+      if (nj.id) setSelected(nj);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Upload failed");
+    }
+    input.value = "";
+  }
+
+  async function deleteJobDocument(docId) {
+    if (!selected?.id || !canPlanDocuments) return;
+    setMsg("");
+    const r = await fetch(`/api/jobs/${selected.id}/documents/${docId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      setMsg(d.error || "Could not remove file");
+      return;
+    }
+    await loadJobs();
+    const nr = await fetch(`/api/jobs/${selected.id}`, { credentials: "include" });
+    const nj = await nr.json();
+    if (nj.id) setSelected(nj);
+  }
 
   async function postJobAction(path, extra = {}) {
     if (!selected?.id) {
@@ -700,12 +785,95 @@ export default function JobsWorkspace() {
                 >
                   Hullboard actions
                 </button>
+                <button
+                  type="button"
+                  className={`jobs-detail-tab ${detailTab === "planning" ? "jobs-detail-tab--on" : ""}`}
+                  onClick={() => setDetailTab("planning")}
+                >
+                  Planning package
+                </button>
               </nav>
             </div>
 
             {detailTab === "document" ? (
               <div className="jobs-modal-sheet">
                 <HiiWorkOrderSheet job={selected} />
+              </div>
+            ) : detailTab === "planning" ? (
+              <div className="jobs-modal-planning">
+                <p className="jobs-muted">
+                  Author traveler text, QC notes, and references for this work order. PDFs
+                  and images are stored for the demo (size-capped); production would use
+                  object storage.
+                </p>
+                {!canPlanDocuments ? (
+                  <p className="jobs-banner">
+                    Switch to an <strong>admin</strong>, <strong>IE</strong>,{" "}
+                    <strong>engineer</strong>, or <strong>planner</strong> yard identity to
+                    edit this package.
+                  </p>
+                ) : null}
+                <label className="jobs-field jobs-field--block">
+                  <span>Requirements &amp; job information</span>
+                  <textarea
+                    className="form-control"
+                    rows={10}
+                    disabled={!canPlanDocuments}
+                    value={packageDraft}
+                    onChange={(e) => setPackageDraft(e.target.value)}
+                    placeholder="Traveler steps, torque sequences, material BOM references, safety notes, link to drawing tree…"
+                  />
+                </label>
+                {canPlanDocuments ? (
+                  <div className="jobs-planning-actions">
+                    <button type="button" className="btn-primary" onClick={saveJobRequirements}>
+                      Save requirements text
+                    </button>
+                    <label className="jobs-file-upload">
+                      <span className="jobs-detail-btn">Attach files</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.doc,.docx,application/pdf,image/*"
+                        className="jobs-file-input"
+                        onChange={uploadJobDocuments}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+                <h3 className="jobs-subhead">Uploaded documents</h3>
+                {selected.documents?.length ? (
+                  <ul className="jobs-mini-list">
+                    {selected.documents.map((doc) => (
+                      <li key={doc.id} className="jobs-doc-row">
+                        <a
+                          className="jobs-mono"
+                          href={`/api/jobs/${selected.id}/documents/${doc.id}/file`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {doc.fileName}
+                        </a>
+                        <span className="jobs-muted">
+                          {" "}
+                          · {doc.mimeType}
+                          {doc.uploadedBy?.name ? ` · ${doc.uploadedBy.name}` : ""}
+                        </span>
+                        {canPlanDocuments ? (
+                          <button
+                            type="button"
+                            className="jobs-detail-btn jobs-doc-remove"
+                            onClick={() => deleteJobDocument(doc.id)}
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="jobs-muted">No files attached yet.</p>
+                )}
               </div>
             ) : (
               <>
