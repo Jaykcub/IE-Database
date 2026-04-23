@@ -10,6 +10,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Legacy duplicate tree — Hullboard lives under root app/
+    "IE-Database-main/**",
   ]),
 ]);
 

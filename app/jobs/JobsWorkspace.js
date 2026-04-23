@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect -- intentional fetch-on-mount loaders */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { INGALLS_PASCAGOULA_WORK_CENTERS } from "@/lib/ingalls-work-centers";
 import {
