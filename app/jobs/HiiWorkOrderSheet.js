@@ -5,6 +5,10 @@ import { buildHiiWorkOrderDocument, HII_WO_DISCLAIMER } from "@/lib/hii-work-ord
 
 export default function HiiWorkOrderSheet({ job }) {
   const doc = useMemo(() => buildHiiWorkOrderDocument(job), [job]);
+  const signedAt = job?.completedAt ? new Date(job.completedAt) : null;
+  const signedByLabel = job?.signedOffBy
+    ? `${job.signedOffBy.name}${job.signedOffBy.role ? ` (${job.signedOffBy.role})` : ""}`
+    : null;
 
   return (
     <article className="wo-sheet" aria-label="Illustrative work order routing sheet">
@@ -156,6 +160,20 @@ export default function HiiWorkOrderSheet({ job }) {
         </div>
       </section>
 
+      {job?.status === "COMPLETED" ? (
+        <section className="wo-sheet-section">
+          <h4 className="wo-sheet-h">Completion sign-off</h4>
+          <div className="wo-sheet-signoff-card" role="note" aria-label="Work order sign-off">
+            <div className="wo-sheet-signoff-name">
+              Signature: {signedByLabel ?? "Recorded user"}
+            </div>
+            <div className="wo-sheet-signoff-meta">
+              Signed at: {signedAt ? signedAt.toLocaleString() : "Recorded timestamp unavailable"}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <footer className="wo-sheet-footer">
         <div className="wo-sheet-sig">
           <span>Planner / PP&amp;S review</span>
@@ -163,7 +181,9 @@ export default function HiiWorkOrderSheet({ job }) {
         </div>
         <div className="wo-sheet-sig">
           <span>Shop supervisor</span>
-          <span className="wo-sheet-sig-line" />
+          <span className="wo-sheet-sig-line">
+            {job?.status === "COMPLETED" && signedByLabel ? signedByLabel : ""}
+          </span>
         </div>
         <div className="wo-sheet-sig">
           <span>QC release</span>

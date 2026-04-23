@@ -158,7 +158,10 @@ export default function DataEntry() {
       
       <div className="grid-2">
         <div className="glass-panel" style={{ padding: "2rem" }}>
-          <h2 style={{ marginBottom: "1.5rem", fontSize: "1.5rem" }}>Create Job Ticket</h2>
+          <h2 style={{ marginBottom: "0.35rem", fontSize: "1.5rem" }}>Job Planning</h2>
+          <p style={{ margin: "0 0 1rem", color: "#334155", fontSize: "0.9rem" }}>
+            Create Job / Work Order Package
+          </p>
           <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "1rem" }}>
             Requirements and file attachments require an <strong>admin</strong>,{" "}
             <strong>IE</strong>, <strong>engineer</strong>, or <strong>planner</strong> yard

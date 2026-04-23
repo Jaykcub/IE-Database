@@ -1347,6 +1347,26 @@ a {
   gap: 1rem;
 }
 
+.wo-sheet-signoff-card {
+  margin-top: 0.35rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px dashed rgba(30, 41, 59, 0.35);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.03);
+}
+
+.wo-sheet-signoff-name {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.wo-sheet-signoff-meta {
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  color: #475569;
+}
+
 .wo-sheet-ol {
   margin: 0;
   padding-left: 1.2rem;
@@ -1398,6 +1418,9 @@ a {
   display: block;
   margin-top: 1.75rem;
   border-bottom: 1px solid #334155;
+  min-height: 1.1rem;
+  font-size: 0.74rem;
+  color: #334155;
 }
 
 @media (max-width: 640px) {
