@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getActorUser } from "@/lib/session-user";
-import { canManageJobDocuments } from "@/lib/job-access";
+import { canManageJobDocuments, canViewLaborAttribution } from "@/lib/job-access";
 
 const jobDetailInclude = {
   ship: true,
@@ -29,6 +29,8 @@ const jobDetailInclude = {
 
 export async function GET(_, props) {
   try {
+    const actor = await getActorUser();
+    const allowAllLaborVisibility = canViewLaborAttribution(actor);
     const params = await props.params;
     const jobId = parseInt(params.jobId, 10);
     if (!Number.isFinite(jobId)) {
@@ -39,7 +41,12 @@ export async function GET(_, props) {
       include: jobDetailInclude,
     });
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(job);
+    return NextResponse.json({
+      ...job,
+      workSessions: allowAllLaborVisibility
+        ? job.workSessions
+        : job.workSessions.filter((s) => s.userId === actor?.id),
+    });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -101,7 +108,17 @@ export async function PATCH(request, props) {
       include: jobDetailInclude,
     });
 
-    return NextResponse.json({ ok: true, job });
+    const allowAllLaborVisibility = canViewLaborAttribution(actor);
+    const visibleJob = job
+      ? {
+          ...job,
+          workSessions: allowAllLaborVisibility
+            ? job.workSessions
+            : job.workSessions.filter((s) => s.userId === actor?.id),
+        }
+      : job;
+
+    return NextResponse.json({ ok: true, job: visibleJob });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

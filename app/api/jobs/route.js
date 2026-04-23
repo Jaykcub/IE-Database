@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getActorUser } from "@/lib/session-user";
-import { canManageJobDocuments } from "@/lib/job-access";
+import { canManageJobDocuments, canViewLaborAttribution } from "@/lib/job-access";
 import {
   decodeBase64Upload,
   sanitizeFileName,
@@ -44,6 +44,9 @@ export async function GET(request) {
 
     const where = and.length ? { AND: and } : {};
 
+    const actor = await getActorUser();
+    const allowAllLaborVisibility = canViewLaborAttribution(actor);
+
     const jobs = await prisma.job.findMany({
       where,
       include: {
@@ -80,7 +83,14 @@ export async function GET(request) {
       take: 200,
     });
 
-    return NextResponse.json(jobs);
+    const visibleJobs = jobs.map((job) => ({
+      ...job,
+      workSessions: allowAllLaborVisibility
+        ? job.workSessions
+        : job.workSessions.filter((s) => s.userId === actor?.id),
+    }));
+
+    return NextResponse.json(visibleJobs);
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
