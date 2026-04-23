@@ -14,6 +14,7 @@ import {
   canClearShopLaborOnJob,
   canSignOffCompleteJob,
   canManageJobDocuments,
+  canViewLaborAttribution,
 } from "@/lib/job-access";
 import { readFileAsDataUrl } from "@/lib/browser-file-read";
 
@@ -201,6 +202,7 @@ export default function JobsWorkspace() {
   );
 
   const canPlanDocuments = Boolean(actor && canManageJobDocuments(actor));
+  const canSeeLaborAttribution = Boolean(actor && canViewLaborAttribution(actor));
 
   async function saveJobRequirements() {
     if (!selected?.id || !canPlanDocuments) return;
@@ -979,7 +981,7 @@ export default function JobsWorkspace() {
                   <div>
                     <span className="jobs-muted">Recorded h (sessions)</span>
                     <div className="jobs-metric-val">
-                      {selected.actualHours ?? "—"}
+                      {canSeeLaborAttribution ? (selected.actualHours ?? "—") : "Restricted"}
                     </div>
                   </div>
                   <div>
@@ -993,14 +995,20 @@ export default function JobsWorkspace() {
                 </div>
 
                 <h3 className="jobs-subhead">Labor history</h3>
-                <ul className="jobs-timeline">
-                  {(selected.workSessions ?? []).slice(0, 10).map((s) => (
-                    <li key={s.id}>
-                      {s.user?.name}: {sessionDuration(s).toFixed(2)} h
-                      {s.endedAt ? "" : " · live"}
-                    </li>
-                  ))}
-                </ul>
+                {canSeeLaborAttribution ? (
+                  <ul className="jobs-timeline">
+                    {(selected.workSessions ?? []).slice(0, 10).map((s) => (
+                      <li key={s.id}>
+                        {s.user?.name}: {sessionDuration(s).toFixed(2)} h
+                        {s.endedAt ? "" : " · live"}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="jobs-muted">
+                    Labor attribution is limited to foreman and above.
+                  </p>
+                )}
 
                 <h3 className="jobs-subhead">Assistance &amp; escalations</h3>
                 <div className="jobs-stack">
