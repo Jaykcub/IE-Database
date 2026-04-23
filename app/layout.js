@@ -3,6 +3,7 @@ import "./globals.css";
 import { cookies } from "next/headers";
 import { verifySessionToken } from "@/lib/auth-cookie";
 import AppHeader from "./AppHeader";
+import PowerBiExportFooter from "./PowerBiExportFooter";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 const plexMono = IBM_Plex_Mono({
@@ -39,6 +40,7 @@ export default async function RootLayout({ children }) {
         <div className="hb-noise" aria-hidden />
         <AppHeader authed={authed} />
         <main className="hb-main">{children}</main>
+        {authed ? <PowerBiExportFooter /> : null}
       </body>
     </html>
   );

@@ -3,6 +3,10 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import dotenv from "dotenv";
 import { buildJobsForShip } from "../lib/job-templates.js";
+import {
+  METRIC_CATEGORIES,
+  METRIC_DEPARTMENTS,
+} from "../lib/metric-catalog.js";
 
 dotenv.config();
 
@@ -10,14 +14,6 @@ const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
-
-const METRIC_CATEGORIES = [
-  "Labor Hours",
-  "Cost Variance",
-  "Schedule Variance",
-  "Defect Rate",
-  "Material Spend",
-];
 
 async function main() {
   console.log("Seeding Hullboard — users, hull-specific jobs, demo metrics…");
@@ -103,30 +99,46 @@ async function main() {
       });
     }
 
-    let mi = 0;
-    for (const cat of METRIC_CATEGORIES) {
-      let value = 10000 + ship.id * 1000 + mi;
-      if (cat === "Labor Hours") value = 14000 + ship.id * 800;
-      if (cat === "Cost Variance") value = (mi % 5) * 0.35 - 0.4;
-      if (cat === "Schedule Variance") value = (mi % 4) * 0.25 - 0.3;
-      if (cat === "Defect Rate") value = 0.9 + (mi % 3) * 0.12;
-      if (cat === "Material Spend") value = 220000 + ship.id * 15000;
+    let deptIdx = 0;
+    for (const dept of METRIC_DEPARTMENTS) {
+      let mi = 0;
+      const deptFactor = 1 + deptIdx * 0.06 + (ship.id % 4) * 0.015;
+      for (const cat of METRIC_CATEGORIES) {
+        let value = (10000 + ship.id * 1000 + mi) * deptFactor;
+        if (cat === "Labor Hours") {
+          value = (14000 + ship.id * 800 + deptIdx * 120) * deptFactor;
+        } else if (cat === "Cost Variance") {
+          value = ((mi % 5) * 0.35 - 0.4 + deptIdx * 0.02) * (0.92 + (ship.id % 3) * 0.04);
+        } else if (cat === "Schedule Variance") {
+          value = ((mi % 4) * 0.25 - 0.3 + deptIdx * 0.015) * (0.92 + (ship.id % 3) * 0.04);
+        } else if (cat === "Defect Rate") {
+          value = (0.9 + (mi % 3) * 0.12 + deptIdx * 0.008) * (0.98 + (ship.id % 2) * 0.02);
+        } else if (cat === "Material Spend") {
+          value = (220000 + ship.id * 15000 + deptIdx * 8000) * deptFactor;
+        }
 
-      await prisma.metric.create({
-        data: {
-          shipId: ship.id,
-          department: "Planning Yard",
-          category: cat,
-          value: Math.round(value * 100) / 100,
-        },
-      });
-      mi += 1;
+        await prisma.metric.create({
+          data: {
+            shipId: ship.id,
+            department: dept,
+            category: cat,
+            value: Math.round(value * 100) / 100,
+          },
+        });
+        mi += 1;
+      }
+      deptIdx += 1;
     }
   }
 
   /* Demo: one assistance request + one engineering call for narrative */
   const firstJob = await prisma.job.findFirst({
-    where: { woNumber: { contains: "DDG-129" } },
+    where: {
+      OR: [
+        { woNumber: { contains: "DDG129" } },
+        { woNumber: { contains: "DDG-129" } },
+      ],
+    },
     orderBy: { id: "asc" },
   });
   const alex = await prisma.user.findFirst({ where: { name: "Alex Rivera" } });

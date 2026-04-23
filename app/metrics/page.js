@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useEffect, useMemo, useState } from "react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { METRIC_DEPARTMENTS } from "@/lib/metric-catalog";
+import {
+  buildDemoMetricsForShips,
+  DEMO_FALLBACK_SHIPS,
+  DEMO_SHIP_IDS,
+} from "@/lib/demo-metrics";
 
 export default function MetricsPage() {
   const [ships, setShips] = useState([]);
@@ -47,21 +53,74 @@ export default function MetricsPage() {
     loadMetrics();
   }, [ship1, ship2, department]);
 
-  const chartData = {};
-  metrics.forEach(m => {
-    if (!chartData[m.category]) {
-      chartData[m.category] = { category: m.category };
-    }
-    const shipKey = `Ship ${m.ship.shipClass}-${m.ship.hullNumber}`;
-    if (chartData[m.category][shipKey]) {
-      chartData[m.category][shipKey] += m.value;
-    } else {
-      chartData[m.category][shipKey] = m.value;
-    }
-  });
+  const shipsForCharts = useMemo(
+    () => (ships.length > 0 ? ships : DEMO_FALLBACK_SHIPS),
+    [ships],
+  );
 
-  const finalData = Object.values(chartData);
-  const keys = Array.from(new Set(metrics.map(m => `Ship ${m.ship.shipClass}-${m.ship.hullNumber}`)));
+  /** Prefer API; synthesize only for demo hull ids or when no ships load from DB */
+  const displayMetrics = useMemo(() => {
+    if (!ship1 && !ship2) return [];
+    if (metrics.length > 0) return metrics;
+    const selectedIds = [ship1, ship2]
+      .filter(Boolean)
+      .map((x) => parseInt(x, 10));
+    const onlyDemoSelection = selectedIds.every((id) => DEMO_SHIP_IDS.has(id));
+    const noBackendShipList = ships.length === 0;
+    if (onlyDemoSelection || noBackendShipList) {
+      return buildDemoMetricsForShips(
+        shipsForCharts,
+        ship1,
+        ship2,
+        department,
+      );
+    }
+    return [];
+  }, [metrics, shipsForCharts, ships.length, ship1, ship2, department]);
+
+  const chartFromMetrics = useMemo(() => {
+    const tally = {};
+    displayMetrics.forEach((m) => {
+      const shipKey = `Ship ${m.ship.shipClass}-${m.ship.hullNumber}`;
+      if (!tally[m.category]) tally[m.category] = {};
+      const cur = tally[m.category][shipKey];
+      tally[m.category][shipKey] = cur
+        ? { sum: cur.sum + m.value, count: cur.count + 1 }
+        : { sum: m.value, count: 1 };
+    });
+
+    const rows = [];
+    Object.keys(tally).forEach((category) => {
+      const row = { category };
+      Object.entries(tally[category]).forEach(([shipKey, cell]) => {
+        row[shipKey] =
+          department === ""
+            ? Math.round((cell.sum / cell.count) * 10000) / 10000
+            : cell.sum;
+      });
+      rows.push(row);
+    });
+
+    const keysSet = new Set(
+      displayMetrics.map(
+        (m) => `Ship ${m.ship.shipClass}-${m.ship.hullNumber}`,
+      ),
+    );
+
+    return { rows, keys: Array.from(keysSet) };
+  }, [displayMetrics, department]);
+
+  const finalData = chartFromMetrics.rows;
+  const keys = chartFromMetrics.keys;
+
+  const usingDemoMetrics =
+    metrics.length === 0 &&
+    displayMetrics.length > 0 &&
+    (ship1 || ship2) &&
+    (ships.length === 0 ||
+      [ship1, ship2]
+        .filter(Boolean)
+        .every((x) => DEMO_SHIP_IDS.has(parseInt(x, 10))));
   const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
 
   const formatTooltip = (value, name, props) => {
@@ -87,29 +146,51 @@ export default function MetricsPage() {
             <label className="form-label">Primary Ship</label>
             <select className="form-control" value={ship1} onChange={e => setShip1(e.target.value)}>
               <option value="">Select a ship...</option>
-              {ships.map(s => <option key={s.id} value={s.id}>{s.shipClass} {s.hullNumber}</option>)}
+              {shipsForCharts.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.shipClass} {s.hullNumber}
+                  {s.displayLabel ? ` · ${s.displayLabel}` : ""}
+                </option>
+              ))}
             </select>
           </div>
           <div className="form-group">
             <label className="form-label">Comparison Ship</label>
             <select className="form-control" value={ship2} onChange={e => setShip2(e.target.value)}>
               <option value="">Select a comparison ship...</option>
-              {ships.map(s => <option key={s.id} value={s.id}>{s.shipClass} {s.hullNumber}</option>)}
+              {shipsForCharts.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.shipClass} {s.hullNumber}
+                  {s.displayLabel ? ` · ${s.displayLabel}` : ""}
+                </option>
+              ))}
             </select>
           </div>
           <div className="form-group">
             <label className="form-label">Filter Department</label>
             <select className="form-control" value={department} onChange={e => setDepartment(e.target.value)}>
-              <option value="">All Departments (Aggregated)</option>
-              <option value="Electrical">Electrical</option>
-              <option value="Mechanical">Mechanical</option>
-              <option value="Pipefitting">Pipefitting</option>
-              <option value="Welding">Welding</option>
-              <option value="Paint">Paint</option>
+              <option value="">All departments (chart = average across shops)</option>
+              {METRIC_DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
             </select>
           </div>
         </div>
       </div>
+
+      {ships.length === 0 ? (
+        <p style={{ opacity: 0.75, marginBottom: "1rem", fontSize: "0.95rem" }}>
+          No ships loaded from the database — pick a demo hull below to preview chart
+          data.
+        </p>
+      ) : null}
+
+      {usingDemoMetrics ? (
+        <p style={{ opacity: 0.85, marginBottom: "1rem", fontSize: "0.92rem", padding: "0.65rem 1rem", borderRadius: "12px", border: "1px solid rgba(56,189,248,0.25)", background: "rgba(56,189,248,0.06)" }}>
+          Showing <strong>synthetic demo metrics</strong> — connect Postgres and seed for
+          live figures. Export pulls from the database once available.
+        </p>
+      ) : null}
 
       <div className="glass-panel" style={{ padding: '2rem', height: '500px' }}>
         {loading ? (
@@ -130,7 +211,7 @@ export default function MetricsPage() {
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}><p style={{ opacity: 0.5 }}>Select a ship to visualize its metrics.</p></div>
+          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 1rem' }}><p style={{ opacity: 0.55, maxWidth: '28rem', lineHeight: 1.6 }}>{ship1 || ship2 ? 'No metrics returned for this hull and department — try another filter or confirm the database is seeded.' : 'Select a primary ship to visualize metrics.'}</p></div>
         )}
       </div>
     </div>

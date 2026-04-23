@@ -59,6 +59,72 @@ body {
   position: relative;
   z-index: 1;
   min-height: calc(100vh - 4.5rem);
+  padding-bottom: 8rem;
+}
+
+/* Power BI / CSV export dock */
+.hb-export-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  margin-top: 3rem;
+  padding: 1rem 1.75rem calc(1rem + env(safe-area-inset-bottom, 0));
+  border-top: 1px solid var(--hb-border);
+  background: rgba(7, 11, 15, 0.92);
+  backdrop-filter: blur(14px);
+}
+
+.hb-export-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+}
+
+.hb-export-title {
+  display: block;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hb-brass);
+  margin-bottom: 0.35rem;
+}
+
+.hb-export-desc {
+  font-size: 0.82rem;
+  color: var(--hb-muted);
+  line-height: 1.45;
+  max-width: 42rem;
+}
+
+.hb-export-desc em {
+  font-style: normal;
+  color: var(--hb-ink);
+}
+
+.hb-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hb-export-btn {
+  border: 1px solid var(--hb-border);
+  background: rgba(45, 212, 191, 0.1);
+  color: var(--hb-ink);
+  padding: 0.5rem 0.95rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.hb-export-btn:hover {
+  border-color: rgba(45, 212, 191, 0.45);
+  background: rgba(45, 212, 191, 0.16);
 }
 
 /* Header */
